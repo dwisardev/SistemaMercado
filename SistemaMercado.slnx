@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="D:/PROYECTOS FORMATIVOS/Proyecto APIS C#/SistemaMercado/SGM.Infrastructure/SGM.Infrastructure.csproj" />
+  <Project Path="D:/PROYECTOS FORMATIVOS/Proyecto APIS C#/SistemaMercado/SMG.API/SGM.API.csproj" />
+  <Project Path="SMG.Core/SGM.Core.csproj" />
+</Solution>
