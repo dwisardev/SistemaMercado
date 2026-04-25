@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SGM.Core.Entities;
 using SGM.Core.Enums;
-
 
 namespace SGM.Infrastructure.Data.Configuations
 {
@@ -13,48 +9,54 @@ namespace SGM.Infrastructure.Data.Configuations
     {
         public void Configure(EntityTypeBuilder<Puesto> builder)
         {
-            //Nombre de la tabla y schema
-            builder.ToTable("Puestos", "SGM");
-            //Clave primaria
+            builder.ToTable("puestos", "sgm");
             builder.HasKey(p => p.Id);
             builder.Property(p => p.Id)
+                .HasColumnName("id")
                 .HasDefaultValueSql("gen_random_uuid()");
-            //Propiedades con restricciones
+
             builder.Property(p => p.Codigo)
-                .IsRequired()
-                .HasMaxLength(20);
+                .IsRequired().HasMaxLength(20)
+                .HasColumnName("codigo");
             builder.Property(p => p.Descripcion)
-                .HasMaxLength(300);
+                .HasMaxLength(300)
+                .HasColumnName("descripcion");
             builder.Property(p => p.Ubicacion)
-                .HasMaxLength(100);
-            builder.Property(P => P.Aream2)
+                .HasMaxLength(100)
+                .HasColumnName("ubicacion");
+            builder.Property(p => p.Aream2)
                 .HasColumnName("area_m2")
                 .HasPrecision(8, 2);
-            //Conversión del enum a string para PostgreSQL
+            builder.Property(p => p.DuenoId)
+                .HasColumnName("dueno_id");
+            builder.Property(p => p.FechaAsignacion)
+                .HasColumnName("fecha_asignacion");
+            builder.Property(p => p.CreateAt)
+                .HasColumnName("created_at");
+            builder.Property(p => p.UpdateAt)
+                .HasColumnName("updated_at");
+
+            // EnMantenimiento → "en_mantenimiento" (el enum.ToString daría "enmantenimiento")
             builder.Property(p => p.Estado)
+                .HasColumnName("estado")
                 .HasConversion(
-                    v => v.ToString().ToLower(), // Convertir enum a string para almacenar
-                      v => Enum.Parse<EstadoPuesto>(v, true) // Convertir string a enum al leer
-                )
-                .HasMaxLength(20); // Asegurar que el campo tenga suficiente longitud para el valor del enum
-            //Mapeo de nombres snake_case
-            builder.Property(p => p.DuenoId).HasColumnName("dueno_id");
-            builder.Property(p => p.UpdateAt).HasColumnName("updated_At");
-            //Forign Key: Puesto -> Usuario (duenño)
+                    v => v == EstadoPuesto.EnMantenimiento ? "en_mantenimiento" : v.ToString().ToLower(),
+                    v => v == "en_mantenimiento" ? EstadoPuesto.EnMantenimiento : Enum.Parse<EstadoPuesto>(v, true))
+                .HasMaxLength(20);
+
             builder.HasOne(p => p.Dueno)
                 .WithMany(u => u.Puestos)
                 .HasForeignKey(p => p.DuenoId)
                 .OnDelete(DeleteBehavior.SetNull);
-            //Relación uno a muchos: Puesto -> Deudas
+
             builder.HasMany(p => p.Deudas)
                 .WithOne(d => d.Puesto)
-                .HasForeignKey(p => p.PuestoId)
-                .OnDelete(DeleteBehavior.SetNull);
-            //Indices
+                .HasForeignKey(d => d.PuestoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.HasIndex(p => p.Codigo).IsUnique();
             builder.HasIndex(p => p.DuenoId);
             builder.HasIndex(p => p.Estado);
         }
-
     }
 }

@@ -37,7 +37,7 @@ namespace SGM.Infrastructure.Data.Configuations
                     v => Enum.Parse<MetodoPago>(v, true)
                 );
             builder.Property(p => p.Estado)
-                .HasColumnName("metodo_pago")
+                .HasColumnName("estado_pago")
                 .HasConversion(
                     v => v.ToString().ToLower(),
                     v => Enum.Parse<EstadoPago>(v, true)
@@ -45,11 +45,6 @@ namespace SGM.Infrastructure.Data.Configuations
             builder.Property(p => p.ReferenciaPago)
                 .HasColumnName("referencia_pago")
                 .HasMaxLength(100);
-                
-            builder.Property(p => p.Metodo)
-                .HasConversion(
-                v => v.ToString().ToLower(),
-                v => Enum.Parse<EstadoPago>(v, true));
         }
     }
 
