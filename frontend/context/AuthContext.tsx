@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await authApi.login(dto);
     storeUser(data);
     setUser(data);
-    router.push('/dashboard');
+    router.push(data.rol === 'Dueno' ? '/mi-cuenta' : '/dashboard');
   }, [router]);
 
   const logout = useCallback(() => {

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SGM.Infrastructure.External
+namespace SGM.Infrastructure.Services
 {
-    internal class ReporteService
-    {
-    }
+    // Reports are implemented directly in ReportesController via AppDbContext.
 }

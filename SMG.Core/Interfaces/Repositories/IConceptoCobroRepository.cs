@@ -11,7 +11,8 @@ namespace SMG.Core.Repositories
         Task<IEnumerable<ConceptoCobro>>GetActivosAsync();
         Task<ConceptoCobro> GetByIdAsync(Guid id);
         Task<ConceptoCobro?> AddAsync(ConceptoCobro concepto);
-        Task <bool> ExisteNombreAsync(string nombre , Guid? idExcluido = null);
+        Task UpdateAsync(ConceptoCobro concepto);
+        Task<bool> ExisteNombreAsync(string nombre, Guid? idExcluido = null);
          
     }
 }

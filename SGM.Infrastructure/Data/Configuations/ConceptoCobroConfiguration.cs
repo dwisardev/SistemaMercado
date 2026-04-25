@@ -25,6 +25,8 @@ namespace SGM.Infrastructure.Data.Configuations
                 .HasPrecision(10, 2);
             builder.Property(cc => cc.EsRecurrente)
                 .HasColumnName("es_recurrente");
+            builder.Property(cc => cc.DiaEmision)
+                .HasColumnName("dia_emision");
             builder.Property(cc => cc.Activo)
                 .HasColumnName("activo");
             builder.Property(cc => cc.Metadata)

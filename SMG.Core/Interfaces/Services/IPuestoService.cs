@@ -11,8 +11,9 @@ namespace SGM.Core.Interfaces.Services
         Task<Puesto> GetByIdAsync(Guid id);
         Task<Puesto> CreateAsync (Puesto puesto);
         Task AsignarDuenoAsync(Guid id, Puesto datosActualizados);
-        Task LiberarPuestoAsync(Guid puestoiD);
-        Task <IEnumerable<Puesto>> GetByDuenoAsync(Guid duenoId);
+        Task LiberarPuestoAsync(Guid puestoId);
+        Task UpdatePuestoAsync(Guid id, Puesto datos);
+        Task<IEnumerable<Puesto>> GetByDuenoAsync(Guid duenoId);
 
     }
 }

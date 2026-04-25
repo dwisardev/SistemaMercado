@@ -17,8 +17,9 @@ namespace SMG.Core.Repositories
         Task<Pago?> GetByDeudaIdAsync(Guid deudaId);
         Task<Pago> AddAsync(Pago pago);
 
-        Task UpdateAsync (Pago pago);
-        Task <string?> GetUltimoNroComprobanteAsync();
+        Task UpdateAsync(Pago pago);
+        Task<string?> GetUltimoNroComprobanteAsync();
+        Task<IEnumerable<Pago>> GetFiltradosAsync(DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado);
 
 
 

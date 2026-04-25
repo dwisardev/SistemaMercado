@@ -6,10 +6,13 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['Admin', 'Cajero', 'Dueno'] },
-  { href: '/puestos', label: 'Puestos', icon: '🏪', roles: ['Admin', 'Cajero', 'Dueno'] },
+  { href: '/mi-cuenta', label: 'Mi Cuenta', icon: '🏠', roles: ['Dueno'] },
+  { href: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['Admin', 'Cajero'] },
+  { href: '/puestos', label: 'Puestos', icon: '🏪', roles: ['Admin', 'Cajero'] },
   { href: '/pagos', label: 'Registrar Pago', icon: '💳', roles: ['Admin', 'Cajero'] },
+  { href: '/historial-pagos', label: 'Historial Pagos', icon: '🧾', roles: ['Admin', 'Cajero'] },
   { href: '/deudas', label: 'Carga de Deudas', icon: '📋', roles: ['Admin'] },
+  { href: '/conceptos', label: 'Conceptos de Cobro', icon: '🏷️', roles: ['Admin'] },
   { href: '/reportes', label: 'Reportes', icon: '📈', roles: ['Admin', 'Cajero'] },
   { href: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['Admin'] },
   { href: '/notificaciones', label: 'Notificaciones', icon: '🔔', roles: ['Admin', 'Cajero', 'Dueno'] },

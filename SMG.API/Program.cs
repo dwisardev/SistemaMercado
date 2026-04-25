@@ -1,34 +1,63 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using QuestPDF.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Npgsql;
+using Npgsql.NameTranslation;
+using SGM.Core.Enums;
+using SGM.Core.Interfaces.Repositories;
+using SGM.Core.Interfaces.Services;
+using SGM.Core.Repositories;
 using SGM.Infrastructure.Data;
 using SGM.Infrastructure.Repositories;
 using SGM.Infrastructure.Services;
+using SMG.Core.Enums;
 using SMG.Core.Interfaces.Services;
 using SMG.Core.Repositories;
 using System.Text;
 
+QuestPDF.Settings.License = LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+var codespaceName = Environment.GetEnvironmentVariable("CODESPACE_NAME");
+var codespaceFrontend = codespaceName is not null
+    ? $"https://{codespaceName}-3000.preview.app.github.dev"
+    : null;
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
+    {
+        var origins = new List<string>
+        {
+            "http://localhost:3000",
+            "https://localhost:3000",
+        };
+        if (codespaceFrontend is not null) origins.Add(codespaceFrontend);
+
         policy
-            .WithOrigins(
-                "http://localhost:3000",
-                "https://localhost:3000"
-            )
+            .WithOrigins(origins.ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials()
-    );
+            .AllowCredentials();
+    });
 });
 
 // ─── EF Core + PostgreSQL ─────────────────────────────────────────────────────
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+var translator = new NpgsqlSnakeCaseNameTranslator();
+dataSourceBuilder.MapEnum<EstadoPago>  ("sgm.estado_pago",   translator);
+dataSourceBuilder.MapEnum<MetodoPago>  ("sgm.metodo_pago",   translator);
+dataSourceBuilder.MapEnum<EstadoDeuda> ("sgm.estado_deuda",  translator);
+dataSourceBuilder.MapEnum<EstadoPuesto>("sgm.estado_puesto", translator);
+dataSourceBuilder.MapEnum<RolUsuario>  ("sgm.rol_usuario",   translator);
+var dataSource = dataSourceBuilder.Build();
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(dataSource));
 
 // ─── JWT ──────────────────────────────────────────────────────────────────────
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -53,8 +82,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ─── DI: Repositorios y Servicios ────────────────────────────────────────────
-builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
-builder.Services.AddScoped<IAuthService,       AuthService>();
+builder.Services.AddScoped<IUsuarioRepository,      UsuarioRepository>();
+builder.Services.AddScoped<IPuestoRepository,       PuestoRepository>();
+builder.Services.AddScoped<IDeudaRepository,        DeudaRepository>();
+builder.Services.AddScoped<IPagoRepository,         PagoRepository>();
+builder.Services.AddScoped<IConceptoCobroRepository,ConceptoCobroRepository>();
+builder.Services.AddScoped<INotificacionRepository, NotificacionRepository>();
+
+builder.Services.AddScoped<IAuthService,            AuthService>();
+builder.Services.AddScoped<IPuestoService,          PuestoService>();
+builder.Services.AddScoped<IDeudaService,           DeudaService>();
+builder.Services.AddScoped<IPagoService,            PagoService>();
+builder.Services.AddScoped<IConceptoCobroService,   ConceptoCobroService>();
+builder.Services.AddScoped<IUsuarioService,         UsuarioService>();
+builder.Services.AddScoped<INotificacionService,    NotificacionService>();
 
 // ─── Controllers + Swagger ───────────────────────────────────────────────────
 builder.Services.AddControllers();

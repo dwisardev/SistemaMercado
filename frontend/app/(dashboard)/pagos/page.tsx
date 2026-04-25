@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { puestosApi, deudasApi, pagosApi } from '@/lib/api';
-import type { Puesto, Deuda, MetodoPago } from '@/lib/types';
-import { formatCurrency, formatDate, getAxiosErrorMessage } from '@/lib/utils';
+import type { Puesto, Deuda, MetodoPago, Pago } from '@/lib/types';
+import { formatCurrency, formatDate, getAxiosErrorMessage, downloadBlob } from '@/lib/utils';
 import Navbar from '@/components/layout/Navbar';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -31,6 +31,7 @@ export default function PagosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [modalAnular, setModalAnular] = useState<string | null>(null);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
+  const [pagoRegistrado, setPagoRegistrado] = useState<Pago | null>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PagoFormValues>({
     defaultValues: { metodo: 'Efectivo' },
@@ -60,13 +61,14 @@ export default function PagosPage() {
     if (!deudaSeleccionada) return;
     setSubmitting(true);
     try {
-      await pagosApi.registrar({
+      const pago = await pagosApi.registrar({
         deudaId: deudaSeleccionada.id,
         montoPagado: parseFloat(values.montoPagado),
         metodo: values.metodo,
         referenciaPago: values.referenciaPago,
         observaciones: values.observaciones,
       });
+      setPagoRegistrado(pago);
       toast('Pago registrado correctamente', 'success');
       reset();
       setDeudaSeleccionada(null);
@@ -75,6 +77,15 @@ export default function PagosPage() {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDescargarComprobante = async (id: string, nro: string | null) => {
+    try {
+      const blob = await pagosApi.getComprobante(id);
+      downloadBlob(blob, `comprobante-${nro ?? id}.pdf`);
+    } catch {
+      toast('Error al descargar el comprobante', 'error');
     }
   };
 
@@ -163,6 +174,21 @@ export default function PagosPage() {
 
         {/* Columna derecha: formulario de pago */}
         <Card title="2. Registrar pago">
+          {pagoRegistrado && (
+            <div className="mb-4 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-green-800">Último comprobante</p>
+                <p className="text-xs text-green-600 font-mono">{pagoRegistrado.numeroComprobante}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleDescargarComprobante(pagoRegistrado.id, pagoRegistrado.numeroComprobante)}
+              >
+                Descargar PDF
+              </Button>
+            </div>
+          )}
           {!deudaSeleccionada ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <span className="text-4xl mb-3">💳</span>

@@ -5,12 +5,14 @@ namespace SGM.Infrastructure.Data
 {
     public static class DataSeeder
     {
-        // Usuarios de prueba y sus contraseñas iniciales
+        // Contraseña unificada para todos los usuarios de prueba
+        private const string DefaultPassword = "admin123";
+
         private static readonly Dictionary<string, string> _seedPasswords = new()
         {
-            ["admin@mercado.com"]    = "Admin123!",
-            ["cajero1@mercado.com"]  = "Cajero123!",
-            ["cajera2@mercado.com"]  = "Cajero123!",
+            ["admin@mercado.com"]    = DefaultPassword,
+            ["cajero1@mercado.com"]  = DefaultPassword,
+            ["cajera2@mercado.com"]  = DefaultPassword,
         };
 
         public static async Task SeedPasswordsAsync(AppDbContext db, ILogger logger)

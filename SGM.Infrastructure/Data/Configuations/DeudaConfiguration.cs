@@ -40,11 +40,7 @@ namespace SGM.Infrastructure.Data.Configuations
                 .HasColumnName("updated_at");
 
             builder.Property(d => d.Estado)
-                .HasColumnName("estado")
-                .HasConversion(
-                    v => v.ToString().ToLower(),
-                    v => Enum.Parse<EstadoDeuda>(v, true))
-                .HasMaxLength(20);
+                .HasColumnName("estado");
 
             builder.HasOne(d => d.Puesto)
                 .WithMany(p => p.Deudas)

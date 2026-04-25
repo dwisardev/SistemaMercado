@@ -14,10 +14,18 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
+import Pagination from '@/components/ui/Pagination';
+import { usePagination } from '@/lib/usePagination';
 
 const estadoColor: Record<string, 'green' | 'blue' | 'yellow' | 'gray'> = {
   Disponible: 'green', Ocupado: 'blue', Mantenimiento: 'yellow',
 };
+
+interface EditarForm {
+  descripcion: string;
+  sector: string;
+  estado: string;
+}
 
 export default function PuestosPage() {
   const { hasRole } = useAuth();
@@ -27,11 +35,14 @@ export default function PuestosPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalAsignar, setModalAsignar] = useState<Puesto | null>(null);
+  const [modalLiberar, setModalLiberar] = useState<Puesto | null>(null);
+  const [modalEditar, setModalEditar] = useState<Puesto | null>(null);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const asignarForm = useForm<{ duenoId: string }>();
   const nuevoForm = useForm<{ numeroPuesto: string; descripcion?: string; sector?: string; tarifaMensual?: string }>();
+  const editarForm = useForm<EditarForm>();
 
   useEffect(() => {
     Promise.all([puestosApi.getAll(), usuariosApi.getAll()])
@@ -48,6 +59,7 @@ export default function PuestosPage() {
     (p.duenoNombre ?? '').toLowerCase().includes(search.toLowerCase()) ||
     (p.sector ?? '').toLowerCase().includes(search.toLowerCase())
   );
+  const { page, setPage, totalPages, paged, total } = usePagination(filtered, 20);
 
   const handleAsignar = async (values: { duenoId: string }) => {
     if (!modalAsignar) return;
@@ -64,14 +76,43 @@ export default function PuestosPage() {
     }
   };
 
-  const handleLiberar = async (puesto: Puesto) => {
-    if (!confirm(`¿Liberar el puesto ${puesto.numeroPuesto}?`)) return;
+  const handleLiberar = async () => {
+    if (!modalLiberar) return;
     try {
-      const updated = await puestosApi.liberar(puesto.id);
+      const updated = await puestosApi.liberar(modalLiberar.id);
       setPuestos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setModalLiberar(null);
       toast('Puesto liberado', 'success');
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
+    }
+  };
+
+  const abrirEditar = (p: Puesto) => {
+    editarForm.reset({
+      descripcion: p.descripcion ?? '',
+      sector: p.sector ?? '',
+      estado: p.estado === 'Ocupado' ? 'Disponible' : p.estado,
+    });
+    setModalEditar(p);
+  };
+
+  const handleEditar = async (values: EditarForm) => {
+    if (!modalEditar) return;
+    setSubmitting(true);
+    try {
+      const updated = await puestosApi.update(modalEditar.id, {
+        descripcion: values.descripcion,
+        sector: values.sector,
+        estado: values.estado,
+      });
+      setPuestos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setModalEditar(null);
+      toast('Puesto actualizado', 'success');
+    } catch (err) {
+      toast(getAxiosErrorMessage(err), 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -142,9 +183,14 @@ export default function PuestosPage() {
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((p) => (
+                    paged.map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="py-3 font-semibold text-gray-800">{p.numeroPuesto}</td>
+                        <td className="py-3">
+                          <p className="font-semibold text-gray-800">{p.numeroPuesto}</p>
+                          {p.descripcion && (
+                            <p className="text-xs text-gray-400 mt-0.5">{p.descripcion}</p>
+                          )}
+                        </td>
                         <td className="py-3 text-gray-600">{p.sector ?? '—'}</td>
                         <td className="py-3">
                           <Badge color={estadoColor[p.estado] ?? 'gray'}>{p.estado}</Badge>
@@ -156,6 +202,11 @@ export default function PuestosPage() {
                         {hasRole('Admin', 'Cajero') && (
                           <td className="py-3 text-right">
                             <div className="flex gap-2 justify-end">
+                              {hasRole('Admin') && (
+                                <Button size="sm" variant="secondary" onClick={() => abrirEditar(p)}>
+                                  Editar
+                                </Button>
+                              )}
                               {p.estado !== 'Ocupado' ? (
                                 <Button
                                   size="sm"
@@ -171,7 +222,7 @@ export default function PuestosPage() {
                                 <Button
                                   size="sm"
                                   variant="danger"
-                                  onClick={() => handleLiberar(p)}
+                                  onClick={() => setModalLiberar(p)}
                                 >
                                   Liberar
                                 </Button>
@@ -184,10 +235,41 @@ export default function PuestosPage() {
                   )}
                 </tbody>
               </table>
+              <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPage={setPage} />
             </div>
           )}
         </Card>
       </div>
+
+      {/* Modal: Editar puesto */}
+      <Modal
+        open={!!modalEditar}
+        onClose={() => setModalEditar(null)}
+        title={`Editar Puesto ${modalEditar?.numeroPuesto}`}
+      >
+        <form onSubmit={editarForm.handleSubmit(handleEditar)} className="space-y-4">
+          <Input
+            id="descripcionEdit"
+            label="Descripción (opcional)"
+            placeholder="Ej: Local esquinero"
+            {...editarForm.register('descripcion')}
+          />
+          <Input
+            id="sectorEdit"
+            label="Sector (opcional)"
+            placeholder="Ej: Zona A"
+            {...editarForm.register('sector')}
+          />
+          <Select id="estadoEdit" label="Estado" {...editarForm.register('estado')}>
+            <option value="Disponible">Disponible</option>
+            <option value="Mantenimiento">En Mantenimiento</option>
+          </Select>
+          <div className="flex gap-3 justify-end pt-2">
+            <Button variant="secondary" type="button" onClick={() => setModalEditar(null)}>Cancelar</Button>
+            <Button type="submit" loading={submitting}>Guardar cambios</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal: Asignar dueño */}
       <Modal
@@ -214,6 +296,22 @@ export default function PuestosPage() {
         </form>
       </Modal>
 
+      {/* Modal: Confirmar liberación */}
+      <Modal
+        open={!!modalLiberar}
+        onClose={() => setModalLiberar(null)}
+        title={`Liberar puesto ${modalLiberar?.numeroPuesto}`}
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          ¿Estás seguro de que deseas liberar el puesto <strong>{modalLiberar?.numeroPuesto}</strong>?
+          Se eliminará la asignación del dueño <strong>{modalLiberar?.duenoNombre}</strong>.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="secondary" onClick={() => setModalLiberar(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={handleLiberar}>Liberar</Button>
+        </div>
+      </Modal>
+
       {/* Modal: Nuevo puesto */}
       <Modal open={modalNuevo} onClose={() => setModalNuevo(false)} title="Nuevo Puesto">
         <form onSubmit={nuevoForm.handleSubmit(handleCrear)} className="space-y-4">
@@ -226,13 +324,6 @@ export default function PuestosPage() {
           />
           <Input id="sector" label="Sector (opcional)" placeholder="Ej: Zona A" {...nuevoForm.register('sector')} />
           <Input id="descripcion" label="Descripción (opcional)" {...nuevoForm.register('descripcion')} />
-          <Input
-            id="tarifaMensual"
-            label="Tarifa mensual (S/.) (opcional)"
-            type="number"
-            step="0.01"
-            {...nuevoForm.register('tarifaMensual')}
-          />
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setModalNuevo(false)}>Cancelar</Button>
             <Button type="submit" loading={submitting}>Crear</Button>

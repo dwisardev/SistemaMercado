@@ -5,7 +5,7 @@ using System.Text;
 
 namespace SGM.Core.Repositories
 {
-    internal interface IPuestoRepository
+    public interface IPuestoRepository
     {
         Task<IEnumerable<Puesto>> GetAllAsync();
         Task<Puesto?> GetByIdAsync(Guid id);

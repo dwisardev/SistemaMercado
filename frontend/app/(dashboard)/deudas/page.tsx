@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { puestosApi, conceptosApi, deudasApi } from '@/lib/api';
-import type { Puesto, ConceptoCobro, CargaMasivaResult } from '@/lib/types';
-import { formatCurrency, getAxiosErrorMessage } from '@/lib/utils';
+import type { Puesto, ConceptoCobro, CargaMasivaResult, Deuda } from '@/lib/types';
+import { formatCurrency, formatDate, getAxiosErrorMessage } from '@/lib/utils';
 import Navbar from '@/components/layout/Navbar';
 import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -29,6 +30,10 @@ interface MasivaForm {
   periodo: string;
 }
 
+const estadoDeudaColor: Record<string, 'red' | 'yellow' | 'green' | 'gray'> = {
+  Vencida: 'red', Pendiente: 'yellow', Pagada: 'green', Anulada: 'gray',
+};
+
 export default function DeudasPage() {
   const { hasRole } = useAuth();
   const router = useRouter();
@@ -36,9 +41,16 @@ export default function DeudasPage() {
 
   const [puestos, setPuestos] = useState<Puesto[]>([]);
   const [conceptos, setConceptos] = useState<ConceptoCobro[]>([]);
-  const [tab, setTab] = useState<'individual' | 'masiva'>('individual');
+  const [tab, setTab] = useState<'individual' | 'masiva' | 'consultar'>('individual');
   const [submitting, setSubmitting] = useState(false);
   const [resultadoMasivo, setResultadoMasivo] = useState<CargaMasivaResult | null>(null);
+
+  // Consultar
+  const [filtroPuesto, setFiltroPuesto] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroPeriodo, setFiltroPeriodo] = useState('');
+  const [deudas, setDeudas] = useState<Deuda[]>([]);
+  const [loadingDeudas, setLoadingDeudas] = useState(false);
 
   const indForm = useForm<IndividualForm>();
   const masForm = useForm<MasivaForm>();
@@ -87,15 +99,41 @@ export default function DeudasPage() {
     }
   };
 
+  const buscarDeudas = useCallback(async () => {
+    if (!filtroPuesto && !filtroEstado && !filtroPeriodo) {
+      toast('Selecciona al menos un filtro', 'error');
+      return;
+    }
+    setLoadingDeudas(true);
+    try {
+      const data = await deudasApi.getFiltradas({
+        puestoId: filtroPuesto || undefined,
+        estado: filtroEstado || undefined,
+        periodo: filtroPeriodo || undefined,
+      });
+      setDeudas(data);
+    } catch (err) {
+      toast(getAxiosErrorMessage(err), 'error');
+    } finally {
+      setLoadingDeudas(false);
+    }
+  }, [filtroPuesto, filtroEstado, filtroPeriodo, toast]);
+
   const today = new Date().toISOString().slice(0, 10);
+
+  const tabLabels: Record<string, string> = {
+    individual: '📋 Carga Individual',
+    masiva: '📦 Carga Masiva',
+    consultar: '🔍 Consultar',
+  };
 
   return (
     <>
       <Navbar title="Carga de Deudas" />
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-6 max-w-3xl mx-auto">
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
-          {(['individual', 'masiva'] as const).map((t) => (
+          {(['individual', 'masiva', 'consultar'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -103,7 +141,7 @@ export default function DeudasPage() {
                 tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t === 'individual' ? '📋 Carga Individual' : '📦 Carga Masiva'}
+              {tabLabels[t]}
             </button>
           ))}
         </div>
@@ -154,6 +192,94 @@ export default function DeudasPage() {
                 Registrar Deuda
               </Button>
             </form>
+          </Card>
+        )}
+
+        {tab === 'consultar' && (
+          <Card title="Consultar Deudas">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Puesto</label>
+                <select
+                  value={filtroPuesto}
+                  onChange={(e) => setFiltroPuesto(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— Todos —</option>
+                  {puestos.map((p) => (
+                    <option key={p.id} value={p.id}>{p.numeroPuesto}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+                <select
+                  value={filtroEstado}
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— Todos —</option>
+                  <option value="Pendiente">Pendiente</option>
+                  <option value="Vencida">Vencida</option>
+                  <option value="Pagada">Pagada</option>
+                  <option value="Anulada">Anulada</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Período</label>
+                <input
+                  type="text"
+                  value={filtroPeriodo}
+                  onChange={(e) => setFiltroPeriodo(e.target.value)}
+                  placeholder="Ej: Enero 2025"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <Button onClick={buscarDeudas} loading={loadingDeudas} className="mb-6">
+              Buscar
+            </Button>
+
+            {deudas.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                      <th className="pb-3 font-medium">Puesto</th>
+                      <th className="pb-3 font-medium">Dueño</th>
+                      <th className="pb-3 font-medium">Concepto</th>
+                      <th className="pb-3 font-medium">Período</th>
+                      <th className="pb-3 font-medium">Vencimiento</th>
+                      <th className="pb-3 font-medium text-right">Monto</th>
+                      <th className="pb-3 font-medium">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {deudas.map((d) => (
+                      <tr key={d.id} className="hover:bg-gray-50">
+                        <td className="py-2 font-semibold text-gray-800">{d.puestoNumero ?? '—'}</td>
+                        <td className="py-2 text-gray-500 text-xs">{d.duenoNombre ?? '—'}</td>
+                        <td className="py-2 text-gray-600">{d.conceptoNombre}</td>
+                        <td className="py-2 text-gray-500">{d.periodo}</td>
+                        <td className="py-2 text-gray-400 text-xs">
+                          {d.fechaVencimiento ? formatDate(d.fechaVencimiento) : '—'}
+                        </td>
+                        <td className="py-2 text-right font-semibold">{formatCurrency(d.monto)}</td>
+                        <td className="py-2">
+                          <Badge color={estadoDeudaColor[d.estado] ?? 'gray'}>{d.estado}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-xs text-gray-400 mt-3 text-right">{deudas.length} resultado(s)</p>
+              </div>
+            )}
+            {!loadingDeudas && deudas.length === 0 && (
+              <p className="text-center text-gray-400 py-6 text-sm">
+                Usa los filtros arriba y presiona Buscar
+              </p>
+            )}
           </Card>
         )}
 

@@ -15,6 +15,8 @@ import Select from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import Pagination from '@/components/ui/Pagination';
+import { usePagination } from '@/lib/usePagination';
 
 interface UsuarioForm {
   nombreCompleto: string;
@@ -23,23 +25,30 @@ interface UsuarioForm {
   rol: Rol;
 }
 
+interface EditarForm {
+  nombreCompleto: string;
+  rol: Rol;
+  nuevaPassword?: string;
+}
+
 const rolColor: Record<Rol, 'blue' | 'green' | 'purple'> = {
   Admin: 'blue', Cajero: 'green', Dueno: 'purple',
 };
 
 export default function UsuariosPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, user: currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalNuevo, setModalNuevo] = useState(false);
+  const [modalEditar, setModalEditar] = useState<Usuario | null>(null);
+  const [modalToggle, setModalToggle] = useState<Usuario | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<UsuarioForm>({
-    defaultValues: { rol: 'Cajero' },
-  });
+  const nuevoForm = useForm<UsuarioForm>({ defaultValues: { rol: 'Cajero' } });
+  const editarForm = useForm<EditarForm>();
 
   useEffect(() => {
     if (!hasRole('Admin')) { router.push('/dashboard'); return; }
@@ -55,8 +64,47 @@ export default function UsuariosPage() {
       const nuevo = await usuariosApi.create(values);
       setUsuarios((prev) => [nuevo, ...prev]);
       setModalNuevo(false);
-      reset();
+      nuevoForm.reset();
       toast('Usuario creado correctamente', 'success');
+    } catch (err) {
+      toast(getAxiosErrorMessage(err), 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const abrirEditar = (u: Usuario) => {
+    editarForm.reset({ nombreCompleto: u.nombreCompleto, rol: u.rol, nuevaPassword: '' });
+    setModalEditar(u);
+  };
+
+  const handleEditar = async (values: EditarForm) => {
+    if (!modalEditar) return;
+    setSubmitting(true);
+    try {
+      const updated = await usuariosApi.update(modalEditar.id, {
+        nombreCompleto: values.nombreCompleto,
+        rol: values.rol,
+        nuevaPassword: values.nuevaPassword || undefined,
+      });
+      setUsuarios((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      setModalEditar(null);
+      toast('Usuario actualizado', 'success');
+    } catch (err) {
+      toast(getAxiosErrorMessage(err), 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleActivo = async () => {
+    if (!modalToggle) return;
+    setSubmitting(true);
+    try {
+      const updated = await usuariosApi.update(modalToggle.id, { activo: !modalToggle.activo });
+      setUsuarios((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      setModalToggle(null);
+      toast(`Usuario ${updated.activo ? 'activado' : 'desactivado'}`, 'success');
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
@@ -69,6 +117,7 @@ export default function UsuariosPage() {
     u.email.toLowerCase().includes(search.toLowerCase()) ||
     u.rol.toLowerCase().includes(search.toLowerCase())
   );
+  const { page, setPage, totalPages, paged, total } = usePagination(filtered, 20);
 
   return (
     <>
@@ -100,17 +149,18 @@ export default function UsuariosPage() {
                     <th className="pb-3 font-medium">Rol</th>
                     <th className="pb-3 font-medium">Estado</th>
                     <th className="pb-3 font-medium">Creado</th>
+                    <th className="pb-3 font-medium text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-400">
+                      <td colSpan={6} className="py-8 text-center text-gray-400">
                         No se encontraron usuarios
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((u) => (
+                    paged.map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50">
                         <td className="py-3 font-medium text-gray-800">{u.nombreCompleto}</td>
                         <td className="py-3 text-gray-500">{u.email}</td>
@@ -123,32 +173,50 @@ export default function UsuariosPage() {
                           </Badge>
                         </td>
                         <td className="py-3 text-gray-400 text-xs">{formatDate(u.createdAt)}</td>
+                        <td className="py-3 text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="secondary" onClick={() => abrirEditar(u)}>
+                              Editar
+                            </Button>
+                            {u.id !== currentUser?.usuarioId && (
+                              <Button
+                                size="sm"
+                                variant={u.activo ? 'danger' : 'secondary'}
+                                onClick={() => setModalToggle(u)}
+                              >
+                                {u.activo ? 'Desactivar' : 'Activar'}
+                              </Button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+              <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPage={setPage} />
             </div>
           )}
         </Card>
       </div>
 
+      {/* Modal Nuevo Usuario */}
       <Modal open={modalNuevo} onClose={() => setModalNuevo(false)} title="Nuevo Usuario">
-        <form onSubmit={handleSubmit(handleCrear)} className="space-y-4">
+        <form onSubmit={nuevoForm.handleSubmit(handleCrear)} className="space-y-4">
           <Input
             id="nombreCompleto"
             label="Nombre completo"
             placeholder="Juan Pérez"
-            error={errors.nombreCompleto?.message}
-            {...register('nombreCompleto', { required: 'Campo obligatorio' })}
+            error={nuevoForm.formState.errors.nombreCompleto?.message}
+            {...nuevoForm.register('nombreCompleto', { required: 'Campo obligatorio' })}
           />
           <Input
             id="emailUser"
             label="Correo electrónico"
             type="email"
             placeholder="juan@mercado.com"
-            error={errors.email?.message}
-            {...register('email', {
+            error={nuevoForm.formState.errors.email?.message}
+            {...nuevoForm.register('email', {
               required: 'Campo obligatorio',
               pattern: { value: /\S+@\S+\.\S+/, message: 'Correo inválido' },
             })}
@@ -158,15 +226,10 @@ export default function UsuariosPage() {
             label="Contraseña"
             type="password"
             placeholder="Mínimo 6 caracteres"
-            error={errors.password?.message}
-            {...register('password', { required: 'Campo obligatorio', minLength: { value: 6, message: 'Mínimo 6 caracteres' } })}
+            error={nuevoForm.formState.errors.password?.message}
+            {...nuevoForm.register('password', { required: 'Campo obligatorio', minLength: { value: 6, message: 'Mínimo 6 caracteres' } })}
           />
-          <Select
-            id="rolUser"
-            label="Rol"
-            error={errors.rol?.message}
-            {...register('rol', { required: 'Selecciona un rol' })}
-          >
+          <Select id="rolUser" label="Rol" {...nuevoForm.register('rol', { required: true })}>
             <option value="Admin">Admin</option>
             <option value="Cajero">Cajero</option>
             <option value="Dueno">Dueño</option>
@@ -176,6 +239,60 @@ export default function UsuariosPage() {
             <Button type="submit" loading={submitting}>Crear Usuario</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Editar Usuario */}
+      <Modal open={!!modalEditar} onClose={() => setModalEditar(null)} title={`Editar — ${modalEditar?.nombreCompleto}`}>
+        <form onSubmit={editarForm.handleSubmit(handleEditar)} className="space-y-4">
+          <Input
+            id="nombreEdit"
+            label="Nombre completo"
+            error={editarForm.formState.errors.nombreCompleto?.message}
+            {...editarForm.register('nombreCompleto', { required: 'Campo obligatorio' })}
+          />
+          <Select id="rolEdit" label="Rol" {...editarForm.register('rol')}>
+            <option value="Admin">Admin</option>
+            <option value="Cajero">Cajero</option>
+            <option value="Dueno">Dueño</option>
+          </Select>
+          <Input
+            id="nuevaPasswordEdit"
+            label="Nueva contraseña (dejar vacío para no cambiar)"
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            error={editarForm.formState.errors.nuevaPassword?.message}
+            {...editarForm.register('nuevaPassword', {
+              validate: (v) => !v || v.length >= 6 || 'Mínimo 6 caracteres',
+            })}
+          />
+          <div className="flex gap-3 justify-end pt-2">
+            <Button variant="secondary" type="button" onClick={() => setModalEditar(null)}>Cancelar</Button>
+            <Button type="submit" loading={submitting}>Guardar cambios</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Toggle Activo */}
+      <Modal
+        open={!!modalToggle}
+        onClose={() => setModalToggle(null)}
+        title={modalToggle?.activo ? 'Desactivar usuario' : 'Activar usuario'}
+      >
+        <p className="text-sm text-gray-600 mb-6">
+          ¿Deseas <strong>{modalToggle?.activo ? 'desactivar' : 'activar'}</strong> al usuario{' '}
+          <strong>{modalToggle?.nombreCompleto}</strong>?
+          {modalToggle?.activo && ' No podrá iniciar sesión mientras esté inactivo.'}
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="secondary" onClick={() => setModalToggle(null)}>Cancelar</Button>
+          <Button
+            variant={modalToggle?.activo ? 'danger' : 'primary'}
+            loading={submitting}
+            onClick={handleToggleActivo}
+          >
+            {modalToggle?.activo ? 'Desactivar' : 'Activar'}
+          </Button>
+        </div>
       </Modal>
     </>
   );
