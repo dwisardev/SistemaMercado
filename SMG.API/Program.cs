@@ -27,8 +27,14 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ─── PORT (Railway inyecta $PORT automáticamente) ─────────────────────────────
+var port = Environment.GetEnvironmentVariable("PORT");
+if (port is not null)
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-var codespaceName = Environment.GetEnvironmentVariable("CODESPACE_NAME");
+var codespaceName  = Environment.GetEnvironmentVariable("CODESPACE_NAME");
+var frontendUrl    = Environment.GetEnvironmentVariable("FRONTEND_URL");   // URL de Vercel
 var codespaceFrontend = codespaceName is not null
     ? $"https://{codespaceName}-3000.preview.app.github.dev"
     : null;
@@ -43,6 +49,7 @@ builder.Services.AddCors(options =>
             "https://localhost:3000",
         };
         if (codespaceFrontend is not null) origins.Add(codespaceFrontend);
+        if (frontendUrl is not null)       origins.Add(frontendUrl);
 
         policy
             .WithOrigins(origins.ToArray())
@@ -53,7 +60,23 @@ builder.Services.AddCors(options =>
 });
 
 // ─── EF Core + PostgreSQL ─────────────────────────────────────────────────────
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+// Railway inyecta DATABASE_URL como postgresql://user:pass@host:port/db
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+string connectionString;
+if (databaseUrl is not null)
+{
+    var uri      = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString =
+        $"Host={uri.Host};Port={uri.Port};" +
+        $"Database={uri.AbsolutePath.TrimStart('/')};" +
+        $"Username={userInfo[0]};Password={userInfo[1]};" +
+        "SearchPath=sgm;SSL Mode=Require;Trust Server Certificate=true";
+}
+else
+{
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+}
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
 var dataSource = dataSourceBuilder.Build();
 builder.Services.AddDbContext<AppDbContext>(options =>
