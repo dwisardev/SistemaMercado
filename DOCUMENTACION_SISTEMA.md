@@ -1201,3 +1201,83 @@ builder.Property(p => p.Estado)
 | `SGM.Infrastructure/Data/Configuations/DeudaConfiguration.cs` | `HasConversion` para `EstadoDeuda` |
 | `SMG.API/Program.cs` | Eliminadas llamadas `MapEnum` y `using Npgsql.NameTranslation` |
 | Base de datos | 5 columnas enum → text; 4 views y 3 indexes recreados; 2 trigger functions actualizadas |
+
+---
+
+## 15. Versión 1.9 — Correcciones de arranque, UI y rediseño de login
+
+### 15.1 Tabla `refresh_tokens` faltante en el script de base de datos
+
+**Problema:** El endpoint `POST /api/auth/login` fallaba con `relation "sgm.refresh_tokens" does not exist` en entornos recién instalados, porque la tabla no estaba en `sgm_postgresql17_local.sql`.
+
+**Solución:** Añadida la tabla como sección 2.2 del script principal, justo después de `sgm.usuarios` (de quien depende por FK). Las secciones siguientes fueron renumeradas (2.2 → 2.3 PUESTOS … 2.8 PAGOS).
+
+```sql
+CREATE TABLE IF NOT EXISTS sgm.refresh_tokens (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id  UUID         NOT NULL REFERENCES sgm.usuarios(id) ON DELETE CASCADE,
+    token       VARCHAR(128) NOT NULL UNIQUE,
+    expires_at  TIMESTAMPTZ  NOT NULL,
+    revocado    BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+```
+
+### 15.2 Corrección de bugs en frontend — selects paginados
+
+**Problema:** `puestosApi.getAll()` retorna `{ data: Puesto[], total, page, … }` desde v1.6, pero dos páginas del dashboard lo trataban como `Puesto[]` directamente, lanzando `TypeError: ps.filter is not a function` en runtime y mostrando "Error cargando datos".
+
+| Archivo | Línea | Fix |
+|---|---|---|
+| `frontend/app/(dashboard)/deudas/page.tsx` | 62 | `ps.filter(…)` → `ps.data.filter(…)` |
+| `frontend/app/(dashboard)/pagos/page.tsx` | 42 | `ps.filter(…)` → `ps.data.filter(…)` |
+| `frontend/app/(dashboard)/pagos/page.tsx` | 186 | `numeroComprobante` (`string \| undefined`) → `?? null` para coincidir con firma `string \| null` |
+
+### 15.3 Componentes UI — texto negro en selects y Heroicons
+
+**Problema:** Los `<select>` y `<Select>` del dashboard mostraban las opciones con texto invisible sobre fondos claros por falta de `text-gray-900`.
+
+**Cambios en componentes compartidos:**
+
+- `components/ui/Select.tsx` — añadido `text-gray-900`, `appearance-none` y `ChevronDownIcon` (Heroicons) como flecha decorativa.
+- `components/ui/Input.tsx` — toggle de contraseña integrado en el propio componente usando `EyeIcon` / `EyeSlashIcon`; nueva prop `icon` para icono izquierdo opcional; `text-gray-900` explícito.
+
+**Selects inline corregidos** (añadido `bg-white text-gray-900`):
+`deudas/page.tsx`, `puestos/page.tsx`, `reportes/page.tsx`, `usuarios/page.tsx`, `historial-pagos/page.tsx`
+
+**Dependencia instalada:** `@heroicons/react`
+
+### 15.4 Rediseño de página de login
+
+Layout dividido estilo split-screen inspirado en SeedProd, con tema de mercado peruano:
+
+- **Panel izquierdo (42 %):** fondo blanco, logo con `ShoppingBagIcon`, campos con íconos (`EnvelopeIcon`, `LockClosedIcon`), botón naranja con `ArrowRightEndOnRectangleIcon`, foco naranja en todos los inputs.
+- **Panel derecho (58 %):** imagen de fondo (`/public/mercado.jpg`) cargada por CSS `background-image` (evita el preload automático de Next.js), overlay degradado negro inferior, texto "¡Bienvenido al mercado de tu comunidad!".
+
+### 15.5 Corrección de middleware — archivos estáticos bloqueados
+
+**Problema:** El middleware de autenticación (`proxy.ts`) interceptaba peticiones a `/mercado.jpg` (y cualquier archivo estático en `/public`) redirigiendo a `/login`, impidiendo que la imagen del panel derecho cargara.
+
+**Fix:** Actualizado el matcher para excluir extensiones de archivo estático:
+
+```ts
+matcher: ['/((?!_next/static|_next/image|favicon.ico|login|api|.*\\.(?:jpg|jpeg|png|webp|svg|gif|ico|mp4|woff2?|ttf)).*)']
+```
+
+### 15.6 Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `sgm_postgresql17_local.sql` | Añadida tabla `sgm.refresh_tokens` (sección 2.2); renumeradas secciones 2.3–2.8 |
+| `SGM.Infrastructure/Data/Configuations/DeudaConfiguration.cs` | `HasConversion` para `EstadoDeuda` |
+| `frontend/app/(dashboard)/deudas/page.tsx` | `ps.data.filter` + `text-gray-900` en selects inline |
+| `frontend/app/(dashboard)/pagos/page.tsx` | `ps.data.filter` + fix tipo `?? null` |
+| `frontend/app/(dashboard)/puestos/page.tsx` | `text-gray-900` en selects inline |
+| `frontend/app/(dashboard)/reportes/page.tsx` | `text-gray-900` en selects inline |
+| `frontend/app/(dashboard)/usuarios/page.tsx` | `text-gray-900` en selects inline |
+| `frontend/app/(dashboard)/historial-pagos/page.tsx` | `text-gray-900` en selects inline |
+| `frontend/components/ui/Select.tsx` | `text-gray-900` + `ChevronDownIcon` + `appearance-none` |
+| `frontend/components/ui/Input.tsx` | Toggle contraseña integrado + prop `icon` + `text-gray-900` |
+| `frontend/app/(auth)/login/page.tsx` | Rediseño completo split-screen con Heroicons |
+| `frontend/proxy.ts` | Matcher actualizado para excluir archivos estáticos |
+| `frontend/package.json` | Nueva dependencia `@heroicons/react` |

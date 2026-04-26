@@ -203,7 +203,7 @@ export default function DeudasPage() {
                 <select
                   value={filtroPuesto}
                   onChange={(e) => setFiltroPuesto(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">— Todos —</option>
                   {puestos.map((p) => (
@@ -216,7 +216,7 @@ export default function DeudasPage() {
                 <select
                   value={filtroEstado}
                   onChange={(e) => setFiltroEstado(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">— Todos —</option>
                   <option value="Pendiente">Pendiente</option>
@@ -232,7 +232,7 @@ export default function DeudasPage() {
                   value={filtroPeriodo}
                   onChange={(e) => setFiltroPeriodo(e.target.value)}
                   placeholder="Ej: Enero 2025"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
