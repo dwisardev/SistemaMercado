@@ -15,6 +15,6 @@ namespace SGM.Core.Repositories
         Task<Puesto> AddAsync(Puesto puesto);
         Task UpdateAsync(Puesto puesto);
         Task<bool> ExisteCodigoAsync(string codigo, Guid? excluirId = null);
-
+        Task<(IEnumerable<Puesto> Data, int Total)> GetPaginadoAsync(string? search, int page, int pageSize);
     }
 }

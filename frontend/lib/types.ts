@@ -13,6 +13,8 @@ export interface AuthUser {
   email: string;
   rol: Rol;
   expiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
 }
 
 // ─── Puestos ──────────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ const navItems = [
   { href: '/reportes', label: 'Reportes', icon: '📈', roles: ['Admin', 'Cajero'] },
   { href: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['Admin'] },
   { href: '/notificaciones', label: 'Notificaciones', icon: '🔔', roles: ['Admin', 'Cajero', 'Dueno'] },
+  { href: '/perfil',        label: 'Mi Perfil',       icon: '👤', roles: ['Admin', 'Cajero', 'Dueno'] },
 ] as const;
 
 export default function Sidebar() {

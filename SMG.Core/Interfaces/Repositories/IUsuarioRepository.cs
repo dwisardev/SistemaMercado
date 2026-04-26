@@ -20,5 +20,6 @@ namespace SMG.Core.Repositories
         //Verifcación
         Task<bool> ExisteEmailAsync(string email, Guid? excludeId = null);
         Task<bool> ExisteDniAsync(string dni, Guid? excludeId = null);
+        Task<(IEnumerable<Usuario> Data, int Total)> GetPaginadoAsync(string? search, string? rol, int page, int pageSize);
     }
 }

@@ -22,14 +22,20 @@ export function getStoredUser(): AuthUser | null {
 export function storeUser(user: AuthUser) {
   localStorage.setItem('token', user.token);
   localStorage.setItem('user', JSON.stringify(user));
-  // espejo en cookie para que el middleware SSR lo lea
+  localStorage.setItem('refreshToken', user.refreshToken);
   setCookie('token', user.token, 1);
 }
 
 export function clearUser() {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('refreshToken');
   deleteCookie('token');
+}
+
+export function getStoredRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('refreshToken');
 }
 
 export function isTokenExpired(user: AuthUser): boolean {

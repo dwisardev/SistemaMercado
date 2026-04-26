@@ -20,6 +20,7 @@ namespace SMG.Core.Repositories
         Task UpdateAsync(Pago pago);
         Task<string?> GetUltimoNroComprobanteAsync();
         Task<IEnumerable<Pago>> GetFiltradosAsync(DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado);
+        Task<(IEnumerable<Pago> Data, int Total)> GetFiltradosPaginadoAsync(DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado, int page, int pageSize);
 
 
 

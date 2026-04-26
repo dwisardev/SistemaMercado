@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { usuariosApi } from '@/lib/api';
 import type { Usuario, Rol } from '@/lib/types';
@@ -16,7 +16,8 @@ import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Pagination from '@/components/ui/Pagination';
-import { usePagination } from '@/lib/usePagination';
+
+const PAGE_SIZE = 20;
 
 interface UsuarioForm {
   nombreCompleto: string;
@@ -39,33 +40,61 @@ export default function UsuariosPage() {
   const { hasRole, user: currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalNuevo, setModalNuevo] = useState(false);
-  const [modalEditar, setModalEditar] = useState<Usuario | null>(null);
-  const [modalToggle, setModalToggle] = useState<Usuario | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [search, setSearch] = useState('');
 
-  const nuevoForm = useForm<UsuarioForm>({ defaultValues: { rol: 'Cajero' } });
+  const [usuarios, setUsuarios]   = useState<Usuario[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
+  const [page, setPage]           = useState(1);
+  const [total, setTotal]         = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [modalNuevo, setModalNuevo]     = useState(false);
+  const [modalEditar, setModalEditar]   = useState<Usuario | null>(null);
+  const [modalToggle, setModalToggle]   = useState<Usuario | null>(null);
+  const [submitting, setSubmitting]     = useState(false);
+
+  const nuevoForm  = useForm<UsuarioForm>({ defaultValues: { rol: 'Cajero' } });
   const editarForm = useForm<EditarForm>();
+
+  const cargarUsuarios = useCallback(async (p: number, s: string) => {
+    setLoading(true);
+    try {
+      const res = await usuariosApi.getAll({ search: s || undefined, page: p, pageSize: PAGE_SIZE });
+      setUsuarios(res.data);
+      setTotal(res.total);
+      setTotalPages(res.totalPages);
+    } catch {
+      toast('Error cargando usuarios', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (!hasRole('Admin')) { router.push('/dashboard'); return; }
-    usuariosApi.getAll()
-      .then(setUsuarios)
-      .catch(() => toast('Error cargando usuarios', 'error'))
-      .finally(() => setLoading(false));
-  }, [hasRole, router, toast]);
+    cargarUsuarios(1, '');
+  }, [hasRole, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!hasRole('Admin')) return;
+    setPage(1);
+    cargarUsuarios(1, search);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!hasRole('Admin')) return;
+    cargarUsuarios(page, search);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCrear = async (values: UsuarioForm) => {
     setSubmitting(true);
     try {
-      const nuevo = await usuariosApi.create(values);
-      setUsuarios((prev) => [nuevo, ...prev]);
+      await usuariosApi.create(values);
       setModalNuevo(false);
       nuevoForm.reset();
       toast('Usuario creado correctamente', 'success');
+      await cargarUsuarios(1, search);
+      setPage(1);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
@@ -82,14 +111,14 @@ export default function UsuariosPage() {
     if (!modalEditar) return;
     setSubmitting(true);
     try {
-      const updated = await usuariosApi.update(modalEditar.id, {
+      await usuariosApi.update(modalEditar.id, {
         nombreCompleto: values.nombreCompleto,
         rol: values.rol,
         nuevaPassword: values.nuevaPassword || undefined,
       });
-      setUsuarios((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setModalEditar(null);
       toast('Usuario actualizado', 'success');
+      await cargarUsuarios(page, search);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
@@ -102,22 +131,15 @@ export default function UsuariosPage() {
     setSubmitting(true);
     try {
       const updated = await usuariosApi.update(modalToggle.id, { activo: !modalToggle.activo });
-      setUsuarios((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setModalToggle(null);
       toast(`Usuario ${updated.activo ? 'activado' : 'desactivado'}`, 'success');
+      await cargarUsuarios(page, search);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const filtered = usuarios.filter((u) =>
-    u.nombreCompleto.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.rol.toLowerCase().includes(search.toLowerCase())
-  );
-  const { page, setPage, totalPages, paged, total } = usePagination(filtered, 20);
 
   return (
     <>
@@ -153,14 +175,14 @@ export default function UsuariosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filtered.length === 0 ? (
+                  {usuarios.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-gray-400">
                         No se encontraron usuarios
                       </td>
                     </tr>
                   ) : (
-                    paged.map((u) => (
+                    usuarios.map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50">
                         <td className="py-3 font-medium text-gray-800">{u.nombreCompleto}</td>
                         <td className="py-3 text-gray-500">{u.email}</td>
@@ -194,7 +216,13 @@ export default function UsuariosPage() {
                   )}
                 </tbody>
               </table>
-              <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPage={setPage} />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                pageSize={PAGE_SIZE}
+                onPage={setPage}
+              />
             </div>
           )}
         </Card>

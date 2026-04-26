@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SGM.API.DTOs.Request;
 using SGM.API.DTOs.Response;
 using SMG.Core.Interfaces.Services;
@@ -14,6 +15,7 @@ namespace SGM.API.Controllers
         public AuthController(IAuthService auth) => _auth = auth;
 
         [HttpPost("login")]
+        [EnableRateLimiting("login")]
         public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
@@ -22,16 +24,24 @@ namespace SGM.API.Controllers
             try
             {
                 var result = await _auth.LoginAsync(dto.Email, dto.Password);
+                return Ok(ToDto(result));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+        }
 
-                return Ok(new LoginResponseDto
-                {
-                    Token          = result.Token,
-                    UsuarioId      = result.UsuarioId,
-                    NombreCompleto = result.NombreCompleto,
-                    Email          = result.Email,
-                    Rol            = result.Rol,
-                    ExpiresAt      = result.ExpiresAt,
-                });
+        [HttpPost("refresh")]
+        public async Task<ActionResult<LoginResponseDto>> Refresh([FromBody] RefreshRequestDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.RefreshToken))
+                return BadRequest(new { message = "RefreshToken es obligatorio." });
+
+            try
+            {
+                var result = await _auth.RefreshAsync(dto.RefreshToken);
+                return Ok(ToDto(result));
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -40,13 +50,24 @@ namespace SGM.API.Controllers
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromHeader(Name = "Authorization")] string? authorization)
+        public async Task<IActionResult> Logout([FromBody] LogoutRequestDto? dto,
+            [FromHeader(Name = "Authorization")] string? authorization)
         {
-            var token = authorization?.Replace("Bearer ", "");
-            if (!string.IsNullOrEmpty(token))
-                await _auth.LogoutAsync(token);
-
+            var accessToken = authorization?.Replace("Bearer ", "") ?? string.Empty;
+            await _auth.LogoutAsync(accessToken, dto?.RefreshToken);
             return NoContent();
         }
+
+        private static LoginResponseDto ToDto(SGM.Core.Results.LoginResult r) => new()
+        {
+            Token                 = r.Token,
+            UsuarioId             = r.UsuarioId,
+            NombreCompleto        = r.NombreCompleto,
+            Email                 = r.Email,
+            Rol                   = r.Rol,
+            ExpiresAt             = r.ExpiresAt,
+            RefreshToken          = r.RefreshToken,
+            RefreshTokenExpiresAt = r.RefreshTokenExpiresAt,
+        };
     }
 }

@@ -5,6 +5,8 @@ using SGM.API.DTOs.Response;
 using SGM.Core.Entities;
 using SMG.Core.Enums;
 using SMG.Core.Interfaces.Services;
+using SMG.Core.Repositories;
+using System.Security.Claims;
 using BCryptNet = BCrypt.Net.BCrypt;
 
 namespace SGM.API.Controllers
@@ -14,14 +16,32 @@ namespace SGM.API.Controllers
     [Authorize(Roles = "Admin")]
     public class UsuariosController : ControllerBase
     {
-        private readonly IUsuarioService _service;
-        public UsuariosController(IUsuarioService service) => _service = service;
+        private readonly IUsuarioService    _service;
+        private readonly IUsuarioRepository _repo;
+        public UsuariosController(IUsuarioService service, IUsuarioRepository repo)
+        {
+            _service = service;
+            _repo    = repo;
+        }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UsuarioResponseDto>>> GetAll()
+        public async Task<ActionResult<PaginadoDto<UsuarioResponseDto>>> GetAll(
+            [FromQuery] string? search   = null,
+            [FromQuery] string? rol      = null,
+            [FromQuery] int     page     = 1,
+            [FromQuery] int     pageSize = 25)
         {
-            var usuarios = await _service.GetAllAsync();
-            return Ok(usuarios.Select(ToDto));
+            pageSize = Math.Clamp(pageSize, 1, 200);
+            page     = Math.Max(page, 1);
+
+            var (data, total) = await _repo.GetPaginadoAsync(search, rol, page, pageSize);
+            return Ok(new PaginadoDto<UsuarioResponseDto>
+            {
+                Data     = data.Select(ToDto),
+                Total    = total,
+                Page     = page,
+                PageSize = pageSize,
+            });
         }
 
         [HttpPost]
@@ -67,6 +87,25 @@ namespace SGM.API.Controllers
 
             await _service.UpdateAsync(id, usuario);
             return Ok(ToDto(usuario));
+        }
+
+        [HttpPatch("me/password")]
+        [Authorize]
+        public async Task<IActionResult> CambiarPassword([FromBody] CambiarPasswordDto dto)
+        {
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(idClaim, out var userId))
+                return Unauthorized();
+
+            var usuario = await _service.GetByIdAsync(userId);
+            if (usuario is null) return NotFound(new { message = "Usuario no encontrado." });
+
+            if (!BCryptNet.Verify(dto.PasswordActual, usuario.PasswordHash))
+                return BadRequest(new { message = "La contraseña actual es incorrecta." });
+
+            usuario.PasswordHash = BCryptNet.HashPassword(dto.NuevaPassword);
+            await _service.UpdateAsync(userId, usuario);
+            return NoContent();
         }
 
         private static UsuarioResponseDto ToDto(Usuario u) => new()

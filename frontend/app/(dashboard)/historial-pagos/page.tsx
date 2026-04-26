@@ -13,12 +13,12 @@ import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import Pagination from '@/components/ui/Pagination';
-import { usePagination } from '@/lib/usePagination';
 
 const estadoColor: Record<string, 'green' | 'red' | 'gray'> = {
   Activo: 'green', Anulado: 'red',
 };
 
+const PAGE_SIZE = 25;
 const today = new Date().toISOString().slice(0, 10);
 const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   .toISOString().slice(0, 10);
@@ -33,33 +33,47 @@ export default function HistorialPagosPage() {
   const [fechaFin, setFechaFin] = useState(today);
   const [puestoId, setPuestoId] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [modalAnular, setModalAnular] = useState<Pago | null>(null);
-  const { page, setPage, totalPages, paged, total, reset } = usePagination(pagos, 25);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const cargarPagos = useCallback(async () => {
+  const cargarPagos = useCallback(async (p: number) => {
     setLoading(true);
     try {
-      const data = await pagosApi.getAll({
+      const result = await pagosApi.getAll({
         fechaInicio,
         fechaFin,
         puestoId: puestoId || undefined,
         estado: estadoFiltro || undefined,
+        page: p,
+        pageSize: PAGE_SIZE,
       });
-      setPagos(data);
-      reset();
+      setPagos(result.data);
+      setTotal(result.total);
+      setTotalPages(result.totalPages);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
-  }, [fechaInicio, fechaFin, puestoId, estadoFiltro, toast, reset]);
+  }, [fechaInicio, fechaFin, puestoId, estadoFiltro, toast]);
 
   useEffect(() => {
-    puestosApi.getAll().then(setPuestos).catch(() => {});
-    cargarPagos();
+    puestosApi.getAll({ pageSize: 500 }).then((r) => setPuestos(r.data)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+    cargarPagos(1);
   }, [cargarPagos]);
+
+  const handlePage = (p: number) => {
+    setPage(p);
+    cargarPagos(p);
+  };
 
   const handleDescargar = async (p: Pago) => {
     try {
@@ -78,17 +92,13 @@ export default function HistorialPagosPage() {
       toast('Pago anulado', 'success');
       setModalAnular(null);
       setMotivoAnulacion('');
-      await cargarPagos();
+      cargarPagos(page);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const totalActivos = pagos
-    .filter((p) => p.estado === 'Activo')
-    .reduce((s, p) => s + p.montoPagado, 0);
 
   return (
     <>
@@ -145,20 +155,14 @@ export default function HistorialPagosPage() {
         </Card>
 
         {/* Resumen */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-            <p className="text-xs text-gray-400 mb-1">Total pagos</p>
-            <p className="text-2xl font-bold text-gray-800">{pagos.length}</p>
+            <p className="text-xs text-gray-400 mb-1">Total pagos (filtro actual)</p>
+            <p className="text-2xl font-bold text-gray-800">{total}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-            <p className="text-xs text-gray-400 mb-1">Activos</p>
-            <p className="text-2xl font-bold text-green-600">
-              {pagos.filter((p) => p.estado === 'Activo').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-            <p className="text-xs text-gray-400 mb-1">Total recaudado</p>
-            <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalActivos)}</p>
+            <p className="text-xs text-gray-400 mb-1">Página</p>
+            <p className="text-2xl font-bold text-blue-600">{page} / {totalPages || 1}</p>
           </div>
         </div>
 
@@ -189,7 +193,7 @@ export default function HistorialPagosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {paged.map((p) => (
+                  {pagos.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3 font-mono text-xs text-gray-600">{p.numeroComprobante}</td>
                       <td className="py-3 text-gray-600 whitespace-nowrap">{formatDate(p.fechaPago)}</td>
@@ -228,7 +232,7 @@ export default function HistorialPagosPage() {
                   ))}
                 </tbody>
               </table>
-              <Pagination page={page} totalPages={totalPages} total={total} pageSize={25} onPage={setPage} />
+              <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPage={handlePage} />
             </div>
           )}
         </Card>

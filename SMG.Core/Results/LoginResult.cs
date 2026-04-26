@@ -11,9 +11,9 @@ namespace SGM.Core.Results
         string NombreCompleto,
         string Email,
         string Rol,
-        DateTime ExpiresAt
-
-
+        DateTime ExpiresAt,
+        string RefreshToken,
+        DateTime RefreshTokenExpiresAt
        );
 
     

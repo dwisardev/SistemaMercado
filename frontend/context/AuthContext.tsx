@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api';
-import { storeUser, clearUser, getStoredUser, isTokenExpired } from '@/lib/auth';
+import { storeUser, clearUser, getStoredUser, getStoredRefreshToken, isTokenExpired } from '@/lib/auth';
 import type { AuthUser, LoginRequest, Rol } from '@/lib/types';
 
 interface AuthContextValue {
@@ -38,7 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push(data.rol === 'Dueno' ? '/mi-cuenta' : '/dashboard');
   }, [router]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = getStoredRefreshToken() ?? undefined;
+    try { await authApi.logout(refreshToken); } catch { /* best-effort */ }
     clearUser();
     setUser(null);
     router.push('/login');

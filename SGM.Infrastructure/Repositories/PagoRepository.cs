@@ -58,7 +58,25 @@ namespace SGM.Infrastructure.Repositories
             await _db.Pagos.OrderByDescending(p => p.CreatedAt)
                 .Select(p => p.NumeroComprobante).FirstOrDefaultAsync();
 
-        public async Task<IEnumerable<Pago>> GetFiltradosAsync(DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado)
+        public async Task<IEnumerable<Pago>> GetFiltradosAsync(DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado) =>
+            await BuildFiltroQuery(desde, hasta, puestoId, estado)
+                .OrderByDescending(p => p.FechaPago)
+                .ToListAsync();
+
+        public async Task<(IEnumerable<Pago> Data, int Total)> GetFiltradosPaginadoAsync(
+            DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado, int page, int pageSize)
+        {
+            var q = BuildFiltroQuery(desde, hasta, puestoId, estado);
+            var total = await q.CountAsync();
+            var data = await q
+                .OrderByDescending(p => p.FechaPago)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return (data, total);
+        }
+
+        private IQueryable<Pago> BuildFiltroQuery(DateOnly desde, DateOnly hasta, Guid? puestoId, string? estado)
         {
             var q = _db.Pagos.AsNoTracking()
                 .Include(p => p.Cajero)
@@ -75,7 +93,7 @@ namespace SGM.Infrastructure.Repositories
             if (!string.IsNullOrEmpty(estado) && Enum.TryParse<SGM.Core.Enums.EstadoPago>(estado, true, out var est))
                 q = q.Where(p => p.Estado == est);
 
-            return await q.OrderByDescending(p => p.FechaPago).ToListAsync();
+            return q;
         }
     }
 }

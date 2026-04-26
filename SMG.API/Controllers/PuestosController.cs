@@ -5,6 +5,7 @@ using SGM.API.DTOs.Response;
 using SGM.Core.Entities;
 using SGM.Core.Enums;
 using SGM.Core.Interfaces.Services;
+using SGM.Core.Repositories;
 using System.Security.Claims;
 
 namespace SGM.API.Controllers
@@ -15,13 +16,30 @@ namespace SGM.API.Controllers
     public class PuestosController : ControllerBase
     {
         private readonly IPuestoService _service;
-        public PuestosController(IPuestoService service) => _service = service;
+        private readonly IPuestoRepository _repo;
+        public PuestosController(IPuestoService service, IPuestoRepository repo)
+        {
+            _service = service;
+            _repo    = repo;
+        }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PuestoResponseDto>>> GetAll()
+        public async Task<ActionResult<PaginadoDto<PuestoResponseDto>>> GetAll(
+            [FromQuery] string? search   = null,
+            [FromQuery] int     page     = 1,
+            [FromQuery] int     pageSize = 25)
         {
-            var puestos = await _service.getAllAsync();
-            return Ok(puestos.Select(ToDto));
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            page     = Math.Max(page, 1);
+
+            var (data, total) = await _repo.GetPaginadoAsync(search, page, pageSize);
+            return Ok(new PaginadoDto<PuestoResponseDto>
+            {
+                Data     = data.Select(ToDto),
+                Total    = total,
+                Page     = page,
+                PageSize = pageSize,
+            });
         }
 
         [HttpGet("mis-puestos")]

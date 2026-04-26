@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { puestosApi, usuariosApi } from '@/lib/api';
 import type { Puesto, Usuario } from '@/lib/types';
@@ -15,7 +15,8 @@ import Select from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import Pagination from '@/components/ui/Pagination';
-import { usePagination } from '@/lib/usePagination';
+
+const PAGE_SIZE = 20;
 
 const estadoColor: Record<string, 'green' | 'blue' | 'yellow' | 'gray'> = {
   Disponible: 'green', Ocupado: 'blue', Mantenimiento: 'yellow',
@@ -30,45 +31,62 @@ interface EditarForm {
 export default function PuestosPage() {
   const { hasRole } = useAuth();
   const { toast } = useToast();
-  const [puestos, setPuestos] = useState<Puesto[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+
+  const [puestos, setPuestos]   = useState<Puesto[]>([]);
+  const [duenos, setDuenos]     = useState<Usuario[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [page, setPage]         = useState(1);
+  const [total, setTotal]       = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [modalAsignar, setModalAsignar] = useState<Puesto | null>(null);
   const [modalLiberar, setModalLiberar] = useState<Puesto | null>(null);
-  const [modalEditar, setModalEditar] = useState<Puesto | null>(null);
-  const [modalNuevo, setModalNuevo] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [modalEditar, setModalEditar]   = useState<Puesto | null>(null);
+  const [modalNuevo, setModalNuevo]     = useState(false);
+  const [submitting, setSubmitting]     = useState(false);
 
   const asignarForm = useForm<{ duenoId: string }>();
-  const nuevoForm = useForm<{ numeroPuesto: string; descripcion?: string; sector?: string; tarifaMensual?: string }>();
-  const editarForm = useForm<EditarForm>();
+  const nuevoForm   = useForm<{ numeroPuesto: string; descripcion?: string; sector?: string }>();
+  const editarForm  = useForm<EditarForm>();
 
-  useEffect(() => {
-    Promise.all([puestosApi.getAll(), usuariosApi.getAll()])
-      .then(([p, u]) => {
-        setPuestos(p);
-        setUsuarios(u.filter((u) => u.rol === 'Dueno'));
-      })
-      .catch(() => toast('Error al cargar datos', 'error'))
-      .finally(() => setLoading(false));
+  const cargarPuestos = useCallback(async (p: number, s: string) => {
+    setLoading(true);
+    try {
+      const res = await puestosApi.getAll({ search: s || undefined, page: p, pageSize: PAGE_SIZE });
+      setPuestos(res.data);
+      setTotal(res.total);
+      setTotalPages(res.totalPages);
+    } catch {
+      toast('Error al cargar puestos', 'error');
+    } finally {
+      setLoading(false);
+    }
   }, [toast]);
 
-  const filtered = puestos.filter((p) =>
-    p.numeroPuesto.toLowerCase().includes(search.toLowerCase()) ||
-    (p.duenoNombre ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (p.sector ?? '').toLowerCase().includes(search.toLowerCase())
-  );
-  const { page, setPage, totalPages, paged, total } = usePagination(filtered, 20);
+  useEffect(() => {
+    usuariosApi.getAll({ rol: 'Dueno', pageSize: 500 })
+      .then((res) => setDuenos(res.data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+    cargarPuestos(1, search);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    cargarPuestos(page, search);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAsignar = async (values: { duenoId: string }) => {
     if (!modalAsignar) return;
     setSubmitting(true);
     try {
-      const updated = await puestosApi.asignarDueno(modalAsignar.id, values);
-      setPuestos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      await puestosApi.asignarDueno(modalAsignar.id, values);
       setModalAsignar(null);
       toast('Dueño asignado correctamente', 'success');
+      await cargarPuestos(page, search);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
@@ -79,10 +97,10 @@ export default function PuestosPage() {
   const handleLiberar = async () => {
     if (!modalLiberar) return;
     try {
-      const updated = await puestosApi.liberar(modalLiberar.id);
-      setPuestos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      await puestosApi.liberar(modalLiberar.id);
       setModalLiberar(null);
       toast('Puesto liberado', 'success');
+      await cargarPuestos(page, search);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     }
@@ -101,14 +119,14 @@ export default function PuestosPage() {
     if (!modalEditar) return;
     setSubmitting(true);
     try {
-      const updated = await puestosApi.update(modalEditar.id, {
+      await puestosApi.update(modalEditar.id, {
         descripcion: values.descripcion,
         sector: values.sector,
         estado: values.estado,
       });
-      setPuestos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       setModalEditar(null);
       toast('Puesto actualizado', 'success');
+      await cargarPuestos(page, search);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
@@ -116,17 +134,15 @@ export default function PuestosPage() {
     }
   };
 
-  const handleCrear = async (values: { numeroPuesto: string; descripcion?: string; sector?: string; tarifaMensual?: string }) => {
+  const handleCrear = async (values: { numeroPuesto: string; descripcion?: string; sector?: string }) => {
     setSubmitting(true);
     try {
-      const nuevo = await puestosApi.create({
-        ...values,
-        tarifaMensual: values.tarifaMensual ? parseFloat(values.tarifaMensual) : undefined,
-      });
-      setPuestos((prev) => [nuevo, ...prev]);
+      await puestosApi.create({ ...values });
       setModalNuevo(false);
       nuevoForm.reset();
       toast('Puesto creado correctamente', 'success');
+      await cargarPuestos(1, search);
+      setPage(1);
     } catch (err) {
       toast(getAxiosErrorMessage(err), 'error');
     } finally {
@@ -139,7 +155,6 @@ export default function PuestosPage() {
       <Navbar title="Puestos" />
       <div className="p-6">
         <Card>
-          {/* Toolbar */}
           <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <input
               type="text"
@@ -153,7 +168,6 @@ export default function PuestosPage() {
             )}
           </div>
 
-          {/* Table */}
           {loading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
@@ -176,14 +190,14 @@ export default function PuestosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filtered.length === 0 ? (
+                  {puestos.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-gray-400">
                         No se encontraron puestos
                       </td>
                     </tr>
                   ) : (
-                    paged.map((p) => (
+                    puestos.map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                         <td className="py-3">
                           <p className="font-semibold text-gray-800">{p.numeroPuesto}</p>
@@ -235,7 +249,13 @@ export default function PuestosPage() {
                   )}
                 </tbody>
               </table>
-              <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPage={setPage} />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                pageSize={PAGE_SIZE}
+                onPage={setPage}
+              />
             </div>
           )}
         </Card>
@@ -285,7 +305,7 @@ export default function PuestosPage() {
             {...asignarForm.register('duenoId', { required: 'Selecciona un dueño' })}
           >
             <option value="">— Seleccionar —</option>
-            {usuarios.map((u) => (
+            {duenos.map((u) => (
               <option key={u.id} value={u.id}>{u.nombreCompleto} ({u.email})</option>
             ))}
           </Select>

@@ -25,6 +25,8 @@ namespace SGM.Infrastructure.Data
             public DbSet<Notificacion> Notificaciones { get; set; }
             public DbSet<HistorialDueno> HistorialDuenos { get; set; }
             public DbSet<TarifaPuesto> TarifaPuestos { get;set; }
+            public DbSet<RefreshToken>   RefreshTokens   { get; set; }
+            public DbSet<TokenRevocado> TokensRevocados { get; set; }
        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

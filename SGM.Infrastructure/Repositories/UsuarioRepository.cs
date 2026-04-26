@@ -45,5 +45,28 @@ namespace SGM.Infrastructure.Repositories
         public async Task<bool> ExisteDniAsync(string dni, Guid? excludeId = null) =>
             await _db.Usuarios.AnyAsync(u =>
                 u.Dni == dni && u.Id != excludeId);
+
+        public async Task<(IEnumerable<Usuario> Data, int Total)> GetPaginadoAsync(
+            string? search, string? rol, int page, int pageSize)
+        {
+            var query = _db.Usuarios.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(u =>
+                    u.NombreCompleto.Contains(search) ||
+                    u.Email.Contains(search));
+
+            if (!string.IsNullOrWhiteSpace(rol) && Enum.TryParse<RolUsuario>(rol, true, out var rolEnum))
+                query = query.Where(u => u.Rol == rolEnum);
+
+            var total = await query.CountAsync();
+            var data  = await query
+                .OrderBy(u => u.NombreCompleto)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (data, total);
+        }
     }
 }

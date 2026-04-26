@@ -14,11 +14,18 @@ import type {
 export const authApi = {
   login: (dto: LoginRequest) =>
     api.post<AuthUser>('/api/auth/login', dto).then((r) => r.data),
+  refresh: (refreshToken: string) =>
+    api.post<AuthUser>('/api/auth/refresh', { refreshToken }).then((r) => r.data),
+  logout: (refreshToken?: string) =>
+    api.post('/api/auth/logout', { refreshToken }),
 };
 
 // ─── Puestos ──────────────────────────────────────────────────────────────────
 export const puestosApi = {
-  getAll: () => api.get<Puesto[]>('/api/puestos').then((r) => r.data),
+  getAll: (params?: { search?: string; page?: number; pageSize?: number }) =>
+    api.get<{ data: Puesto[]; total: number; page: number; pageSize: number; totalPages: number }>(
+      '/api/puestos', { params }
+    ).then((r) => r.data),
   getMisPuestos: () => api.get<Puesto[]>('/api/puestos/mis-puestos').then((r) => r.data),
   update: (id: string, dto: { descripcion?: string; sector?: string; estado?: string }) =>
     api.patch<Puesto>(`/api/puestos/${id}`, dto).then((r) => r.data),
@@ -55,8 +62,8 @@ export const deudasApi = {
 
 // ─── Pagos ────────────────────────────────────────────────────────────────────
 export const pagosApi = {
-  getAll: (params?: { fechaInicio?: string; fechaFin?: string; puestoId?: string; estado?: string }) =>
-    api.get<Pago[]>('/api/pagos', { params }).then((r) => r.data),
+  getAll: (params?: { fechaInicio?: string; fechaFin?: string; puestoId?: string; estado?: string; page?: number; pageSize?: number }) =>
+    api.get<{ data: Pago[]; total: number; page: number; pageSize: number; totalPages: number }>('/api/pagos', { params }).then((r) => r.data),
   registrar: (dto: RegistrarPagoDto) =>
     api.post<Pago>('/api/pagos', dto).then((r) => r.data),
   getComprobante: (id: string) =>
@@ -77,11 +84,20 @@ export const reportesApi = {
 
 // ─── Usuarios ─────────────────────────────────────────────────────────────────
 export const usuariosApi = {
-  getAll: () => api.get<Usuario[]>('/api/usuarios').then((r) => r.data),
+  getAll: (params?: { search?: string; rol?: string; page?: number; pageSize?: number }) =>
+    api.get<{ data: Usuario[]; total: number; page: number; pageSize: number; totalPages: number }>(
+      '/api/usuarios', { params }
+    ).then((r) => r.data),
   create: (dto: CreateUsuarioDto) =>
     api.post<Usuario>('/api/usuarios', dto).then((r) => r.data),
   update: (id: string, dto: { nombreCompleto?: string; rol?: string; activo?: boolean; nuevaPassword?: string }) =>
     api.patch<Usuario>(`/api/usuarios/${id}`, dto).then((r) => r.data),
+};
+
+// ─── Perfil ───────────────────────────────────────────────────────────────────
+export const perfilApi = {
+  cambiarPassword: (dto: { passwordActual: string; nuevaPassword: string }) =>
+    api.patch('/api/usuarios/me/password', dto),
 };
 
 // ─── Notificaciones ───────────────────────────────────────────────────────────

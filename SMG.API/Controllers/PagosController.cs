@@ -31,17 +31,28 @@ namespace SGM.API.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,Cajero")]
-        public async Task<ActionResult<IEnumerable<PagoResponseDto>>> GetAll(
+        public async Task<ActionResult<PaginadoDto<PagoResponseDto>>> GetAll(
             [FromQuery] string? fechaInicio,
             [FromQuery] string? fechaFin,
             [FromQuery] Guid? puestoId,
-            [FromQuery] string? estado)
+            [FromQuery] string? estado,
+            [FromQuery] int page     = 1,
+            [FromQuery] int pageSize = 25)
         {
+            page     = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
             var desde = fechaInicio is not null && DateOnly.TryParse(fechaInicio, out var d) ? d : DateOnly.MinValue;
             var hasta = fechaFin is not null && DateOnly.TryParse(fechaFin, out var h) ? h : DateOnly.FromDateTime(DateTime.UtcNow);
 
-            var pagos = await _pagos.GetFiltradosAsync(desde, hasta, puestoId, estado);
-            return Ok(pagos.Select(ToDto));
+            var (data, total) = await _pagos.GetFiltradosPaginadoAsync(desde, hasta, puestoId, estado, page, pageSize);
+            return Ok(new PaginadoDto<PagoResponseDto>
+            {
+                Data     = data.Select(ToDto),
+                Total    = total,
+                Page     = page,
+                PageSize = pageSize,
+            });
         }
 
         [HttpPost]
