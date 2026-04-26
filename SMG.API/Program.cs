@@ -7,9 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Npgsql;
-using Npgsql.NameTranslation;
 using SGM.API.Middleware;
-using SGM.Core.Enums;
 using SGM.Core.Interfaces.Repositories;
 using SGM.Core.Interfaces.Services;
 using SGM.Core.Repositories;
@@ -57,12 +55,6 @@ builder.Services.AddCors(options =>
 // ─── EF Core + PostgreSQL ─────────────────────────────────────────────────────
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-var translator = new NpgsqlSnakeCaseNameTranslator();
-dataSourceBuilder.MapEnum<EstadoPago>  ("sgm.estado_pago",   translator);
-dataSourceBuilder.MapEnum<MetodoPago>  ("sgm.metodo_pago",   translator);
-dataSourceBuilder.MapEnum<EstadoDeuda> ("sgm.estado_deuda",  translator);
-dataSourceBuilder.MapEnum<EstadoPuesto>("sgm.estado_puesto", translator);
-dataSourceBuilder.MapEnum<RolUsuario>  ("sgm.rol_usuario",   translator);
 var dataSource = dataSourceBuilder.Build();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(dataSource));

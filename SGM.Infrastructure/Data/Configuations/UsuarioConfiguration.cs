@@ -43,7 +43,10 @@ namespace SGM.Infrastructure.Data.Configuations
                 .HasColumnName("updated_at");
 
             builder.Property(u => u.Rol)
-                .HasColumnName("rol");
+                .HasColumnName("rol")
+                .HasConversion(
+                    v => v.ToString().ToLower(),
+                    v => Enum.Parse<RolUsuario>(v, true));
 
             builder.HasIndex(u => u.Email).IsUnique();
             builder.HasIndex(u => u.Dni).IsUnique();

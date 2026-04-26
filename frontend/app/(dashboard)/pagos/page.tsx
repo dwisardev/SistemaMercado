@@ -39,7 +39,7 @@ export default function PagosPage() {
 
   useEffect(() => {
     puestosApi.getAll()
-      .then((ps) => setPuestos(ps.filter((p) => p.estado === 'Ocupado')))
+      .then((ps) => setPuestos(ps.data.filter((p) => p.estado === 'Ocupado')))
       .catch(() => toast('Error cargando puestos', 'error'));
   }, [toast]);
 
@@ -183,7 +183,7 @@ export default function PagosPage() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => handleDescargarComprobante(pagoRegistrado.id, pagoRegistrado.numeroComprobante)}
+                onClick={() => handleDescargarComprobante(pagoRegistrado.id, pagoRegistrado.numeroComprobante ?? null)}
               >
                 Descargar PDF
               </Button>

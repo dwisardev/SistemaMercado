@@ -1,8 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Npgsql.NameTranslation;
 using SGM.Core.Entities;
-using SGM.Core.Enums;
-using SMG.Core.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -31,14 +28,6 @@ namespace SGM.Infrastructure.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            var translator = new NpgsqlSnakeCaseNameTranslator();
-            modelBuilder.HasPostgresEnum<EstadoPago>  ("sgm", "estado_pago",   translator);
-            modelBuilder.HasPostgresEnum<MetodoPago>  ("sgm", "metodo_pago",   translator);
-            modelBuilder.HasPostgresEnum<EstadoDeuda> ("sgm", "estado_deuda",  translator);
-            modelBuilder.HasPostgresEnum<EstadoPuesto>("sgm", "estado_puesto", translator);
-            modelBuilder.HasPostgresEnum<RolUsuario>  ("sgm", "rol_usuario",   translator);
-
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             modelBuilder.HasDefaultSchema("sgm");
         }

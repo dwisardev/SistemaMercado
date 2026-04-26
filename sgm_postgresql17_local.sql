@@ -64,7 +64,19 @@ CREATE TABLE IF NOT EXISTS sgm.usuarios (
     CONSTRAINT uq_usuarios_dni   UNIQUE (dni)
 );
 
--- 2.2 PUESTOS
+-- 2.2 REFRESH TOKENS
+CREATE TABLE IF NOT EXISTS sgm.refresh_tokens (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id  UUID         NOT NULL REFERENCES sgm.usuarios(id) ON DELETE CASCADE,
+    token       VARCHAR(128) NOT NULL UNIQUE,
+    expires_at  TIMESTAMPTZ  NOT NULL,
+    revocado    BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token      ON sgm.refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_usuario_id ON sgm.refresh_tokens(usuario_id);
+
+-- 2.3 PUESTOS
 CREATE TABLE IF NOT EXISTS sgm.puestos (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo          VARCHAR(20) NOT NULL,
@@ -81,7 +93,7 @@ CREATE TABLE IF NOT EXISTS sgm.puestos (
     CONSTRAINT uq_puestos_codigo UNIQUE (codigo)
 );
 
--- 2.3 HISTORIAL DE DUEÑOS
+-- 2.4 HISTORIAL DE DUEÑOS
 CREATE TABLE IF NOT EXISTS sgm.historial_duenos (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     puesto_id       UUID NOT NULL REFERENCES sgm.puestos(id) ON DELETE CASCADE,
@@ -93,7 +105,7 @@ CREATE TABLE IF NOT EXISTS sgm.historial_duenos (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 2.4 CONCEPTOS DE COBRO
+-- 2.5 CONCEPTOS DE COBRO
 CREATE TABLE IF NOT EXISTS sgm.conceptos_cobro (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre          VARCHAR(100) NOT NULL,
@@ -111,7 +123,7 @@ CREATE TABLE IF NOT EXISTS sgm.conceptos_cobro (
     CONSTRAINT ck_conceptos_dia    CHECK (dia_emision BETWEEN 1 AND 28)
 );
 
--- 2.5 TARIFAS POR PUESTO
+-- 2.6 TARIFAS POR PUESTO
 CREATE TABLE IF NOT EXISTS sgm.tarifas_puesto (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     puesto_id       UUID NOT NULL REFERENCES sgm.puestos(id) ON DELETE CASCADE,
@@ -125,7 +137,7 @@ CREATE TABLE IF NOT EXISTS sgm.tarifas_puesto (
     CONSTRAINT uq_tarifas_puesto_concepto_vigente UNIQUE (puesto_id, concepto_id, vigente_desde)
 );
 
--- 2.6 DEUDAS
+-- 2.7 DEUDAS
 CREATE TABLE IF NOT EXISTS sgm.deudas (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     puesto_id         UUID NOT NULL REFERENCES sgm.puestos(id) ON DELETE RESTRICT,
@@ -147,7 +159,7 @@ CREATE TABLE IF NOT EXISTS sgm.deudas (
     CONSTRAINT uq_deudas_puesto_concepto_periodo UNIQUE (puesto_id, concepto_id, periodo)
 );
 
--- 2.7 PAGOS
+-- 2.8 PAGOS
 CREATE TABLE IF NOT EXISTS sgm.pagos (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     deuda_id        UUID NOT NULL REFERENCES sgm.deudas(id) ON DELETE RESTRICT,

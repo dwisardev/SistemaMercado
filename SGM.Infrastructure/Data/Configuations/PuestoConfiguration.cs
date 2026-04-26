@@ -37,7 +37,10 @@ namespace SGM.Infrastructure.Data.Configuations
                 .HasColumnName("updated_at");
 
             builder.Property(p => p.Estado)
-                .HasColumnName("estado");
+                .HasColumnName("estado")
+                .HasConversion(
+                    v => v == EstadoPuesto.EnMantenimiento ? "en_mantenimiento" : v.ToString().ToLower(),
+                    v => v == "en_mantenimiento" ? EstadoPuesto.EnMantenimiento : Enum.Parse<EstadoPuesto>(v, true));
 
             builder.HasOne(p => p.Dueno)
                 .WithMany(u => u.Puestos)

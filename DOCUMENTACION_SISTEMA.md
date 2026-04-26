@@ -1147,3 +1147,57 @@ getAll(params?: { search?: string; rol?: string; page?: number; pageSize?: numbe
 | Baja | Debounce en campo de búsqueda (puestos y usuarios) | Evitar request por cada keystroke |
 | Baja | Modo oscuro | No implementado |
 | Baja | Tests unitarios | No hay cobertura de pruebas |
+
+---
+
+## 14. Versión 1.8 — Corrección crítica: lectura de enums PostgreSQL
+
+### 14.1 Problema
+
+El backend fallaba con `InvalidCastException: Reading as 'System.Int32' is not supported for fields having DataTypeName 'sgm.rol_usuario'` en todos los endpoints que involucran tablas con columnas enum (`usuarios.rol`, `puestos.estado`, `pagos.estado`, `pagos.metodo_pago`, `deudas.estado`). Ningún login, listado de puestos, ni reporte de morosidad respondía — todos retornaban 500.
+
+**Causa raíz:** Npgsql EF Core 10.0.1 no podía leer columnas de tipo PostgreSQL native enum en esquema no-public (`sgm.rol_usuario`). Su materializador llamaba `GetInt32()` (el tipo subyacente de C# enum), pero la columna era del tipo `sgm.rol_usuario` — incompatibles. `MapEnum` sin schema qualifier y `HasConversion<string>` fueron ignorados porque el plugin de Npgsql EF Core interceptaba el mapeo de tipos antes de aplicar el converter.
+
+### 14.2 Solución aplicada: convertir columnas a TEXT + HasConversion
+
+**Estrategia elegida:** convertir las 5 columnas enum en PostgreSQL a `text` y usar `HasConversion` en las configuraciones de EF Core. Esto desacopla completamente la representación en DB del tipo C#, sin depender del soporte de native enum types de Npgsql.
+
+**Pasos en la base de datos:**
+
+1. Dropped 4 views que dependían de las columnas enum (`vw_deudas_pendientes`, `vw_caja_diaria`, `vw_morosidad`, `vw_resumen_puesto`)
+2. Dropped 3 partial indexes con predicados referenciando tipos enum (`idx_deudas_pendientes`, `idx_deudas_vencidas`, `idx_pagos_fecha_activo`)
+3. Actualizadas las funciones trigger `fn_validar_pago` y `fn_actualizar_estado_deuda` para declarar variables como `TEXT` en lugar de `sgm.estado_deuda` / `sgm.estado_pago`
+4. `ALTER TABLE ... ALTER COLUMN ... TYPE text USING estado::text` en las 5 columnas
+5. Recreadas las views y los indexes usando comparaciones de texto plano (`WHERE d.estado = 'pendiente'` en lugar de `WHERE d.estado = 'pendiente'::sgm.estado_deuda`)
+
+**Pasos en el código C#:**
+
+Cada configuración EF Core recibió `HasConversion` que serializa el enum a string en minúsculas (snake_case donde aplica) y lo parsea de vuelta:
+
+```csharp
+// UsuarioConfiguration — RolUsuario → "admin" | "cajero" | "dueno"
+builder.Property(u => u.Rol)
+    .HasConversion(v => v.ToString().ToLower(), v => Enum.Parse<RolUsuario>(v, true));
+
+// PuestoConfiguration — EstadoPuesto, caso especial EnMantenimiento → "en_mantenimiento"
+builder.Property(p => p.Estado)
+    .HasConversion(
+        v => v == EstadoPuesto.EnMantenimiento ? "en_mantenimiento" : v.ToString().ToLower(),
+        v => v == "en_mantenimiento" ? EstadoPuesto.EnMantenimiento : Enum.Parse<EstadoPuesto>(v, true));
+
+// PagoConfiguration — EstadoPago y MetodoPago → toLower directo
+// DeudaConfiguration — EstadoDeuda → toLower directo
+```
+
+`Program.cs`: eliminadas las llamadas a `dataSourceBuilder.MapEnum<T>()` y la variable `translator` (ya no son necesarias porque las columnas son TEXT).
+
+### 14.3 Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `SGM.Infrastructure/Data/Configuations/UsuarioConfiguration.cs` | `HasConversion` para `RolUsuario` |
+| `SGM.Infrastructure/Data/Configuations/PuestoConfiguration.cs` | `HasConversion` para `EstadoPuesto` |
+| `SGM.Infrastructure/Data/Configuations/PagoConfiguration.cs` | `HasConversion` para `EstadoPago` y `MetodoPago` |
+| `SGM.Infrastructure/Data/Configuations/DeudaConfiguration.cs` | `HasConversion` para `EstadoDeuda` |
+| `SMG.API/Program.cs` | Eliminadas llamadas `MapEnum` y `using Npgsql.NameTranslation` |
+| Base de datos | 5 columnas enum → text; 4 views y 3 indexes recreados; 2 trigger functions actualizadas |

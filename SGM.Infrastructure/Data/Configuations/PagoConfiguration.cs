@@ -31,10 +31,16 @@ namespace SGM.Infrastructure.Data.Configuations
             builder.Property(p => p.UpdataAt).HasColumnName("updated_at");
 
             builder.Property(p => p.Metodo)
-                .HasColumnName("metodo_pago");
+                .HasColumnName("metodo_pago")
+                .HasConversion(
+                    v => v.ToString().ToLower(),
+                    v => Enum.Parse<MetodoPago>(v, true));
 
             builder.Property(p => p.Estado)
-                .HasColumnName("estado");
+                .HasColumnName("estado")
+                .HasConversion(
+                    v => v.ToString().ToLower(),
+                    v => Enum.Parse<EstadoPago>(v, true));
 
             builder.HasOne(p => p.Cajero)
                 .WithMany(u => u.PagosRegistrados)

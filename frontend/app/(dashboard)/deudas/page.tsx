@@ -59,7 +59,7 @@ export default function DeudasPage() {
     if (!hasRole('Admin')) { router.push('/dashboard'); return; }
     Promise.all([puestosApi.getAll(), conceptosApi.getAll()])
       .then(([ps, cs]) => {
-        setPuestos(ps.filter((p) => p.estado === 'Ocupado'));
+        setPuestos(ps.data.filter((p) => p.estado === 'Ocupado'));
         setConceptos(cs.filter((c) => c.activo));
       })
       .catch(() => toast('Error cargando datos', 'error'));
