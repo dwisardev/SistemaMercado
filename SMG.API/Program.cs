@@ -192,7 +192,18 @@ using (var scope = app.Services.CreateScope())
 {
     var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
-    await DataSeeder.SeedPasswordsAsync(db, logger);
+    try
+    {
+        await DataSeeder.SeedPasswordsAsync(db, logger);
+    }
+    catch (Exception ex)
+    {
+        var startupLogger = scope.ServiceProvider
+            .GetRequiredService<ILogger<Program>>();
+        startupLogger.LogWarning(ex,
+            "DataSeeder falló. Probablemente falta la columna password_hash. " +
+            "Ejecuta el SQL patch en Railway.");
+    }
 }
 
 // Load persisted JWT blacklist into memory
