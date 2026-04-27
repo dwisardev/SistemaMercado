@@ -66,12 +66,13 @@ string connectionString;
 if (databaseUrl is not null)
 {
     var uri      = new Uri(databaseUrl);
-    var userInfo = uri.UserInfo.Split(':');
+    var userInfo = uri.UserInfo.Split(':', 2); // ← máximo 2 partes
+    var password = Uri.UnescapeDataString(userInfo[1]); // ← decodifica %40 etc
     connectionString =
         $"Host={uri.Host};Port={uri.Port};" +
         $"Database={uri.AbsolutePath.TrimStart('/')};" +
-        $"Username={userInfo[0]};Password={userInfo[1]};" +
-        "SearchPath=sgm;SSL Mode=Require;Trust Server Certificate=true";
+        $"Username={userInfo[0]};Password={password};" +
+    "SearchPath=sgm;SSL Mode=Require;Trust Server Certificate=true";
 }
 else
 {
