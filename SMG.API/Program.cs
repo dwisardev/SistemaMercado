@@ -35,7 +35,7 @@ if (port is not null)
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 var codespaceName  = Environment.GetEnvironmentVariable("CODESPACE_NAME");
 var frontendUrl    = Environment.GetEnvironmentVariable("FRONTEND_URL");   // URL de Vercel
-var vercelUrl      = "https://sistema-mercado-five.vercel.app";           // URL de Vercel producción
+var vercelUrl      = "https://sistema-mercado-plum.vercel.app/";           // URL de Vercel producción
 var codespaceFrontend = codespaceName is not null
     ? $"https://{codespaceName}-3000.preview.app.github.dev"
     : null;
@@ -48,7 +48,7 @@ builder.Services.AddCors(options =>
         {
             "http://localhost:3000",
             "https://localhost:3000",
-            "https://sistema-mercado-five.vercel.app" 
+            "https://sistema-mercado-plum.vercel.app/" 
         };
         if (codespaceFrontend is not null) origins.Add(codespaceFrontend);
         if (frontendUrl is not null)       origins.Add(frontendUrl);
