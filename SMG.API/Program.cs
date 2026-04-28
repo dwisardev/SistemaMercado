@@ -48,6 +48,7 @@ builder.Services.AddCors(options =>
         {
             "http://localhost:3000",
             "https://localhost:3000",
+            "https://sistema-mercado-five.vercel.app" 
         };
         if (codespaceFrontend is not null) origins.Add(codespaceFrontend);
         if (frontendUrl is not null)       origins.Add(frontendUrl);
