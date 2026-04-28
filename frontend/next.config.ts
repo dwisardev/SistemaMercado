@@ -7,13 +7,17 @@ const apiBackendUrl = process.env.API_BACKEND_URL ?? "http://localhost:5000";
 const nextConfig: NextConfig = {
   turbopack: {},
   async rewrites() {
+    
     return [
-      {
-        source: "/api/:path*",
-        destination: `${apiBackendUrl}/api/:path*`,
-      },
-    ];
+    {
+      source: "/api/:path*",
+      destination: process.env.BACKEND_URL
+        ? `${process.env.BACKEND_URL}/api/:path*`
+        : "http://localhost:5000/api/:path*"
+    }
+  ]
   },
 };
+
 
 export default nextConfig;
