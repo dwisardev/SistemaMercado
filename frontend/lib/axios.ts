@@ -2,7 +2,7 @@ import axios from 'axios';
 import { storeUser, clearUser, getStoredRefreshToken } from './auth';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: "/",
   headers: { 'Content-Type': 'application/json' },
 });
 
