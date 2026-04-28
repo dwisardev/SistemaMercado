@@ -2,14 +2,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "htps://sistemamercado-production-c33d.up.railway.app/api/:path*"
+      "destination": "https://sistemamercado-production-c33d.up.railway.app/api/:path*"
     }
   ],
+  
   "headers": [
     {
       "source": "/api/:path*",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "https://sistema-mercado-plum.vercel.app/" },
+        { "key": "Access-Control-Allow-Origin", "value": "https://sistema-mercado-plum.vercel.app" },
         { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
         { "key": "Access-Control-Allow-Credentials", "value": "true" }

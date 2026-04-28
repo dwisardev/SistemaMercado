@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = ['/login'];
+const PUBLIC_API_PATHS = ['/api/auth'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Allow public pages
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Allow public API endpoints (login, refresh, etc.)
+  if (PUBLIC_API_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
