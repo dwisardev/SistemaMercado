@@ -35,6 +35,7 @@ if (port is not null)
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 var codespaceName  = Environment.GetEnvironmentVariable("CODESPACE_NAME");
 var frontendUrl    = Environment.GetEnvironmentVariable("FRONTEND_URL");   // URL de Vercel
+var vercelUrl      = "https://sistema-mercado-five.vercel.app";           // URL de Vercel producción
 var codespaceFrontend = codespaceName is not null
     ? $"https://{codespaceName}-3000.preview.app.github.dev"
     : null;
@@ -50,6 +51,7 @@ builder.Services.AddCors(options =>
         };
         if (codespaceFrontend is not null) origins.Add(codespaceFrontend);
         if (frontendUrl is not null)       origins.Add(frontendUrl);
+        origins.Add(vercelUrl);  // Agregar dominio de Vercel
 
         policy
             .WithOrigins(origins.ToArray())
