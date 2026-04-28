@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
-        "destination": "/page.tsx"
+      "source": "/api/:path*",
+      "destination": "https://sistema-merico-production.up.railway.app/api/:path*"
     }
   ],
   "headers": [
