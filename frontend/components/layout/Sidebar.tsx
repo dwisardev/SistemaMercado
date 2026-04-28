@@ -4,19 +4,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { 
+  HomeIcon, ChartBarIcon, BuildingStorefrontIcon, 
+  CreditCardIcon, DocumentTextIcon, ClipboardDocumentListIcon,
+  TagIcon, ChartBarSquareIcon, UsersIcon, BellIcon, UserIcon
+} from '@heroicons/react/24/outline';
 
 const navItems = [
-  { href: '/mi-cuenta', label: 'Mi Cuenta', icon: '🏠', roles: ['Dueno'] },
-  { href: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['Admin', 'Cajero'] },
-  { href: '/puestos', label: 'Puestos', icon: '🏪', roles: ['Admin', 'Cajero'] },
-  { href: '/pagos', label: 'Registrar Pago', icon: '💳', roles: ['Admin', 'Cajero'] },
-  { href: '/historial-pagos', label: 'Historial Pagos', icon: '🧾', roles: ['Admin', 'Cajero'] },
-  { href: '/deudas', label: 'Carga de Deudas', icon: '📋', roles: ['Admin'] },
-  { href: '/conceptos', label: 'Conceptos de Cobro', icon: '🏷️', roles: ['Admin'] },
-  { href: '/reportes', label: 'Reportes', icon: '📈', roles: ['Admin', 'Cajero'] },
-  { href: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['Admin'] },
-  { href: '/notificaciones', label: 'Notificaciones', icon: '🔔', roles: ['Admin', 'Cajero', 'Dueno'] },
-  { href: '/perfil',        label: 'Mi Perfil',       icon: '👤', roles: ['Admin', 'Cajero', 'Dueno'] },
+  { href: '/mi-cuenta', label: 'Mi Cuenta', icon: HomeIcon, roles: ['Dueno'] },
+  { href: '/dashboard', label: 'Dashboard', icon: ChartBarIcon, roles: ['Admin', 'Cajero'] },
+  { href: '/puestos', label: 'Puestos', icon: BuildingStorefrontIcon, roles: ['Admin', 'Cajero'] },
+  { href: '/pagos', label: 'Registrar Pago', icon: CreditCardIcon, roles: ['Admin', 'Cajero'] },
+  { href: '/historial-pagos', label: 'Historial Pagos', icon: DocumentTextIcon, roles: ['Admin', 'Cajero'] },
+  { href: '/deudas', label: 'Carga de Deudas', icon: ClipboardDocumentListIcon, roles: ['Admin'] },
+  { href: '/conceptos', label: 'Conceptos de Cobro', icon: TagIcon, roles: ['Admin'] },
+  { href: '/reportes', label: 'Reportes', icon: ChartBarSquareIcon, roles: ['Admin', 'Cajero'] },
+  { href: '/usuarios', label: 'Usuarios', icon: UsersIcon, roles: ['Admin'] },
+  { href: '/notificaciones', label: 'Notificaciones', icon: BellIcon, roles: ['Admin', 'Cajero', 'Dueno'] },
+  { href: '/perfil',        label: 'Mi Perfil',       icon: UserIcon, roles: ['Admin', 'Cajero', 'Dueno'] },
 ] as const;
 
 export default function Sidebar() {
@@ -45,6 +50,7 @@ export default function Sidebar() {
         <ul className="space-y-1">
           {visibleItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/');
+            const Icon = item.icon;
             return (
               <li key={item.href}>
                 <Link
@@ -56,7 +62,7 @@ export default function Sidebar() {
                       : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   )}
                 >
-                  <span>{item.icon}</span>
+                  <Icon className="w-5 h-5 flex-shrink-0" />
                   {item.label}
                 </Link>
               </li>

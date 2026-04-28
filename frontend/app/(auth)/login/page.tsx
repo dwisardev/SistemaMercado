@@ -10,6 +10,8 @@ import {
   ShoppingBagIcon,
   ExclamationCircleIcon,
   ArrowRightEndOnRectangleIcon,
+  MapPinIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import Input from '@/components/ui/Input';
 
@@ -116,7 +118,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-10">
-          © {new Date().getFullYear()} MercaGest · Hecho con orgullo en Perú 🇵🇪
+          © {new Date().getFullYear()} MercaGest · Hecho con orgullo en <MapPinIcon className="w-3 h-3 inline" /> Perú
         </p>
       </div>
 
@@ -134,7 +136,7 @@ export default function LoginPage() {
             ¡Bienvenido al mercado de tu comunidad!
           </p>
           <p className="text-white/75 text-sm mt-1 drop-shadow">
-            Productos frescos · Precios justos · Sabor peruano 🇵🇪
+            Productos frescos · Precios justos · Sabor peruano <SparklesIcon className="w-4 h-4 inline" />
           </p>
         </div>
       </div>

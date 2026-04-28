@@ -27,6 +27,9 @@ namespace SGM.Infrastructure.Services
             usuario.NombreCompleto = datos.NombreCompleto;
             usuario.Email = datos.Email;
             usuario.Rol = datos.Rol;
+            usuario.Activo = datos.Activo;
+            if (!string.IsNullOrEmpty(datos.PasswordHash))
+                usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(datos.PasswordHash);
             await _repo.UpdateAsync(usuario);
             return usuario;
         }
